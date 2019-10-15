@@ -15,3 +15,7 @@ for i in range(int(q),10000):
             break
         a += "{},".format(i)
 print(a[:-1])
+
+def m3():
+    pass
+

@@ -46,4 +46,3 @@ def main():
     drawdata(time.strftime('%Y-%m=%d+',time.gmtime()))
     t.done()
 main()
-

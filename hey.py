@@ -18,4 +18,4 @@ print(a[:-1])
 
 def m3():
     pass
-'a'
+

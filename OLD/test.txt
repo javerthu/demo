@@ -1,0 +1,9 @@
+
+<tbody class="hidden_zhpm" style="text-align:center;">
+<tr class="alt"><td>1</td>
+<td><div align="left">清华大学</div></td>
+<td>北京市</td><td>95.9</td><td class="hidden-xs need-hidden indicator5">100.0</td><td class="hidden-xs need-hidden indicator6" style="display:none;">97.90%</td><td class="hidden-xs need-hidden indicator7" style="display:none;">37342</td><td class="hidden-xs need-hidden indicator8" style="display:none;">1.298</td><td class="hidden-xs need-hidden indicator9" style="display:none;">1177</td><td class="hidden-xs need-hidden indicator10" style="display:none;">109</td><td class="hidden-xs need-hidden indicator11" style="display:none;">1137711</td><td class="hidden-xs need-hidden indicator12" style="display:none;">1187</td><td class="hidden-xs need-hidden indicator13" style="display:none;">593522</td></tr>
+<tr><td>310</td>
+<td><div align="left">德州学院</div></td>
+<td>山东省</td><td>21.5</td><td class="hidden-xs need-hidden indicator5">15.3</td><td class="hidden-xs need-hidden indicator6" style="display:none;">87.86%</td><td class="hidden-xs need-hidden indicator7" style="display:none;">614</td><td class="hidden-xs need-hidden indicator8" style="display:none;">0.502</td><td class="hidden-xs need-hidden indicator9" style="display:none;">3</td><td class="hidden-xs need-hidden indicator10" style="display:none;"></td><td class="hidden-xs need-hidden indicator11" style="display:none;">966</td><td class="hidden-xs need-hidden indicator12" style="display:none;">2</td><td class="hidden-xs need-hidden indicator13" style="display:none;">0</td></tr>
+</tbody>

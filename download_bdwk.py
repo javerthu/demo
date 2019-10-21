@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 def getHTMLText(url):
     try:
         kv = {'user-agent': 'Baiduspider-image'} #用Mozilla/5.0访问呢的txt文件是乱码 很郁闷
-        r = requests.get(url, headers = kv, timeout = 30)
+        r = requests.get(url, headers = kv, timeout = 30)#aaa
         r.raise_for_status()
         r.encoding = r.apparent_encoding
         return r.text

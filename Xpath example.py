@@ -14,13 +14,18 @@ def getText(url):
         return r
     except:
         return ''
-url = 'https://search.51job.com/list/000000,000000,0000,00,9,99,python,2,1.html?lang=c&stype=&postchannel=0000&workyear=99&cotype=99&degreefrom=99&jobterm=99&companysize=99&providesalary=99&lonlat=0%2C0&radius=-1&ord_field=0&confirmdate=9&fromType=&dibiaoid=0&address=&line=&specialarea=00&from=&welfare='
-r = getText(url)
+c = 0
+s = input('输入想查询的职位:')
+star_url = 'https://search.51job.com/list/000000,000000,0000,00,9,99,{},2,{}.html'
+for i in range(1, eval(input('爬取深度:'))+1):
+    url = star_url.format(s, i)
+    r = getText(url)
 
-print(type(r.content))
-# 利用etree.HTML把字符串解析成HTML文档
-html = etree.HTML(r.content)
-print(type(html))
-rst = html.xpath("//div/p/span/a")
-for i in rst:
-    print(i.xpath("@href")[0], i.text.replace(' ', ''))
+    print(type(r.content))
+    # 利用etree.HTML把字符串解析成HTML文档
+    html = etree.HTML(r.content)
+    print(type(html))
+    rst = html.xpath("//div/p/span/a")
+    for i in rst:
+        c = c + 1
+        print(c, i.xpath("@href")[0], i.text.replace(' ', ''))

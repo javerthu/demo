@@ -4,6 +4,7 @@ from lxml import etree
 
 '''
 用lxml来解析HTML代码
+加了职位收索和爬取页面深度
 '''
 def getText(url):
     try:

@@ -5,7 +5,7 @@ def gen(s, n):
         yield s[i], s[i+1], s[i+2]
 for i in gen(s, 2):
     print(i)
-
+#试了一下字典输入
 s = [[1,2,3],[4,5,66],[7,8,9]]
 N = ['name', 'addr', 'age']
 # for i in s:

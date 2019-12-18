@@ -13,6 +13,7 @@ I 可以放在 V (5) 和 X (10) 的左边，来表示 4 和 9。
 X 可以放在 L (50) 和 C (100) 的左边，来表示 40 和 90。 
 C 可以放在 D (500) 和 M (1000) 的左边，来表示 400 和 900。
 
+链接：https://leetcode-cn.com/problems/roman-to-integer
 '''
 
 #s 为输入的罗马字符串
@@ -29,3 +30,13 @@ def romanToInt(s):
     return num
 s = input('输入罗马字符串:')
 print(romanToInt(s))
+
+#letcode模板
+# class Solution:
+#     def romanToInt(self, s: str) -> int:
+#         a = s.replace('CM','N').replace('CD','F').replace('XC','J').replace('XL','S').replace('IX','n').replace('IV','f')
+#         d = {}
+#         for i in a:
+#             d[i] = d.get(i,0) + 1
+#         num = d.get('I',0)*1 + d.get('V',0)*5 + d.get('X',0)*10 + d.get('L',0)*50 + d.get('C',0)*100 + d.get('D',0)*500 + d.get('M',0)*1000 + d.get('N',0)*900 + d.get('F',0)*400 + d.get('J',0)*90 + d.get('S',0)*40 + d.get('n',0)*9 + d.get('f',0)*4
+#         return num

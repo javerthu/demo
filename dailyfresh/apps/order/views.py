@@ -110,7 +110,7 @@ class OrderCommitView1(View):
         except Address.DoesNotExist:
             return JsonResponse({'res': 3, 'errmsg': '非法地址'})
 
-        # 创建订单核心业务
+        # todo: 创建订单核心业务
         order_id = datetime.now().strftime('%Y%m%d%H%M%S') + str(user.id)
         # 订单总金额和总数量
         total_count = 0
@@ -122,7 +122,7 @@ class OrderCommitView1(View):
         save_id = transaction.savepoint()
 
         try:
-            # 保存订单信息表: 向df_order_info表中添加一条记录
+            # todo: 保存订单信息表: 向df_order_info表中添加一条记录
             order = models.OrderInfo.objects.create(order_id=order_id,
                                              user=user,
                                              addr=addr,
@@ -160,7 +160,7 @@ class OrderCommitView1(View):
                     transaction.savepoint_rollback(save_id)
                     return JsonResponse({'res': 6, 'errmsg': '商品库存不足'})
 
-                # 向订单商品表中添加信息
+                # todo: 向订单商品表中添加信息
                 models.OrderGoods.objects.create(order=order,
                                           sku=sku,
                                           count=count,
@@ -224,7 +224,7 @@ class OrderCommitView(View):
         except Address.DoesNotExist:
             return JsonResponse({'res': 3, 'errmsg': '非法地址'})
 
-        # 创建订单核心业务
+        # todo: 创建订单核心业务
         order_id = datetime.now().strftime('%Y%m%d%H%M%S') + str(user.id)
         # 订单总金额和总数量
         total_count = 0
@@ -236,7 +236,7 @@ class OrderCommitView(View):
         save_id = transaction.savepoint()
 
         try:
-            # 保存订单信息表: 向df_order_info表中添加一条记录
+            # todo: 保存订单信息表: 向df_order_info表中添加一条记录
             order = models.OrderInfo.objects.create(order_id=order_id,
                                              user=user,
                                              addr=addr,
@@ -280,7 +280,7 @@ class OrderCommitView(View):
                     # import time
                     # time.sleep(10)
 
-                    #
+                    # todo:
                     # update df_goods_sku set stock=new_stock, sales=new_sales
                     # where id=sku_id and stock = orgin_stock
                     # 返回受影响的行数res, 0为失败
@@ -292,7 +292,7 @@ class OrderCommitView(View):
                             return JsonResponse({'res': 8, 'errmsg': '下单失败2'})
                         continue
 
-                    # 向订单商品表中添加信息
+                    # todo: 向订单商品表中添加信息
                     models.OrderGoods.objects.create(order=order,
                                               sku=sku,
                                               count=count,
@@ -501,6 +501,78 @@ class CheckPayView(View):
             else:
                 #支付出错
                 return JsonResponse({'res': 4, 'errmsg': '支付失败'})
+
+# /order/comment/order_id
+class OrderCommentView(LoginRequiredMixin, View):
+    def get(self, request, order_id):
+        """展示评论页"""
+        user = request.user
+
+        # 校验数据
+        if not order_id:
+            return redirect(reverse('user:order'))
+
+        try:
+            order = models.OrderInfo.objects.get(order_id=order_id, user=user)
+        except models.OrderInfo.DoesNotExist:
+            return redirect(reverse('user:order'))
+
+        # 需要根据状态码获取状态
+        order.status_name = models.OrderInfo.ORDER_STATUS[order.order_status]
+
+        # 根据订单id查询对应商品，计算小计金额,不能使用get
+        order_skus = models.OrderGoods.objects.filter(order_id=order_id)
+        for order_sku in order_skus:
+            amount = order_sku.count * order_sku.price
+            order_sku.amount = amount
+        # 增加实例属性
+        order.order_skus = order_skus
+
+        context = {
+            'order': order,
+        }
+        return render(request, 'order_comment.html', context)
+
+    def post(self, request, order_id):
+        """处理评论内容"""
+        # 判断是否登录
+        user = request.user
+
+        # 判断order_id是否为空
+        if not order_id:
+            return redirect(reverse('user:order'))
+
+        # 根据order_id查询当前登录用户订单
+        try:
+            order = models.OrderInfo.objects.get(order_id=order_id, user=user)
+        except models.OrderInfo.DoesNotExist:
+            return redirect(reverse('user:order'))
+
+        # 获取评论条数
+        total_count = int(request.POST.get("total_count"))
+
+        # 循环获取订单中商品的评论内容
+        for i in range(1, total_count + 1):
+            # 获取评论的商品的id
+            sku_id = request.POST.get("sku_%d" % i)  # sku_1 sku_2
+            # 获取评论的商品的内容
+            content = request.POST.get('content_%d' % i, '')  # comment_1 comment_2
+
+            try:
+                order_goods = models.OrderGoods.objects.get(order=order, sku_id=sku_id)
+            except models.OrderGoods.DoesNotExist:
+                continue
+
+            # 保存评论到订单商品表
+            order_goods.comment = content
+            order_goods.save()
+
+        # 修改订单的状态为“已完成”
+        order.order_status = 5  # 已完成
+        order.save()
+        # 1代表第一页的意思，不传会报错
+        return redirect(reverse("user:order", kwargs={"page": 1}))
+
 
 
 

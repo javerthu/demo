@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.views.generic import View
 from django.core.paginator import Paginator #django自带分页类
 from goods import models
+from order.models import OrderGoods
 from django_redis import get_redis_connection
 # Create your views here.
 #/goods/test/
@@ -92,6 +93,9 @@ class DetailView(View):
         # 获取商品种类信息
         types = models.GoodsType.objects.all()  # all() filter(logo='fruit')
 
+        # 获取商品的评论信息
+        sku_orders = OrderGoods.objects.filter(sku=goods_sku).exclude(comment='')
+
         #获取新品推荐信息
         try:
             new_skus = models.GoodsSKU.objects.filter(type=goods_sku.type).order_by('-create_time').exclude(id=goods_id)[0:2]
@@ -122,11 +126,14 @@ class DetailView(View):
             conn.lpush(history_key, goods_id)
             #只保存用户最新浏览的5条信息
             conn.ltrim(history_key, 0, 4)
+        for i in sku_orders:
+            print(i.comment, i.order.user.username, str(i.update_time)[0:10])
 
         # 组织模板上下文
         context = {
             'types': types, #types,
             'goods_sku': goods_sku,
+            'sku_orders': sku_orders,
             'new_skus': new_skus,
             # 'same_new_skus': same_new_skus,
             'cart_count': cart_count,
@@ -174,7 +181,7 @@ class ListView(View):
         # 获取第page页的Page实例对象
         skus_page = paginator.page(page)
 
-        # # 进行页码的控制，页面上最多显示5个页码
+        # # todo: 进行页码的控制，页面上最多显示5个页码
         # # 1. 总数不足5页，显示全部
         # # 2. 如当前页是前3页，显示1-5页
         # # 3. 如当前页是后3页，显示后5页

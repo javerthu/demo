@@ -72,10 +72,10 @@
         $('.oper_btn').click(function () {
             // 获取status
             status = $(this).attr('status')
+            // 获取订单id
+            order_id = $(this).attr('order_id')
             if (status == 1){
                 // 进行支付
-                // 获取订单id
-                order_id = $(this).attr('order_id')
                 csrf = $('input[name="csrfmiddlewaretoken"]').val()
                 // 组织参数
                 params = {'order_id': order_id, 'csrfmiddlewaretoken': csrf}
@@ -100,8 +100,10 @@
                     }
                 })
             }
-            else{
-                alert(data.errmsg)
+            else if (status == 4){
+                //其他情况
+                // 跳转到评价页面
+                location.href = "/order/comment/"+order_id
             }
         })
     </script>

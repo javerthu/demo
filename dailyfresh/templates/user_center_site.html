@@ -1,0 +1,52 @@
+{% extends 'base_user_center.html' %}
+{% block right_content %}
+		<div class="right_content clearfix">
+				<h3 class="common_title2">收货地址</h3>
+					<div class="site_con">
+						<dl>
+							<dt>当前地址：</dt>
+							{% if address %}
+								<dd>{{ address.addr }} （{{ address.receiver }} 收） {{ address.phone }}</dd>
+							{% else %}
+								<dd>无默认地址</dd>
+							{% endif %}
+						</dl>
+					</div>
+<!--					<div class="common_list_con clearfix">-->
+<!--						<dl>-->
+<!--							{% for addr in addrs %}-->
+<!--							<dd><input type="radio" name="addr_id" value="{{ addr.id }}"  {% if addr.is_default %}checked{% endif %}>{{ addr.addr }}（{{ addr.receiver }} 收） {{ addr.phone }}</dd>-->
+<!--							{% empty %}-->
+<!--								<dd>无地址信息</dd>-->
+<!--							{% endfor %}-->
+<!--						</dl>-->
+<!--						<a href="{% url 'user:address' %}" class="edit_site">编辑收货地址</a>-->
+
+<!--					</div>-->
+				<h3 class="common_title2">编辑地址</h3>
+				<div class="site_con">
+					<form method="post" >
+                        {% csrf_token %}
+						<div class="form_group">
+							<label>收件人：</label>
+							<input type="text" name="receiver">
+						</div>
+						<div class="form_group form_group2">
+							<label>详细地址：</label>
+							<textarea class="site_area" name="addr"></textarea>
+						</div>
+						<div class="form_group">
+							<label>邮编：</label>
+							<input type="text" name="zip_code">
+						</div>
+						<div class="form_group">
+							<label>手机：</label>
+							<input type="text" name="phone">
+						</div>
+
+						<input type="submit" name="" value="提交" class="info_submit">
+					</form>
+				</div>
+				{{errmsg}}
+		</div>
+{% endblock right_content %}

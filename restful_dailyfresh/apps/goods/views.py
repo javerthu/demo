@@ -103,22 +103,6 @@ class TestApiView(APIView):
 # /detail/id   商品详情页
 class DetailView(APIView):
     def get(self, request, goods_id):
-        # # 获取商品sku详细信息
-        # try:
-        #     goods_sku = models.GoodsSKU.objects.filter(id=goods_id)[0] #filter(id=goods_id)[0] , get(id=goods_id)
-        # except:  #商品不存在
-        #     return redirect(reverse('goods:index'))
-        #
-        #
-        # # 获取商品的评论信息
-        # sku_orders = OrderGoods.objects.filter(sku=goods_sku).exclude(comment='')
-        #
-        # #获取新品推荐信息
-        # try:
-        #     new_skus = models.GoodsSKU.objects.filter(type=goods_sku.type).order_by('-create_time').exclude(id=goods_id)[0:2]
-        # except:
-        #     new_skus = None
-
         # 获取用户购物车中的商品数目
         user = request.user
         cart_count = 0
@@ -137,14 +121,9 @@ class DetailView(APIView):
             conn.lpush(history_key, goods_id)
             #只保存用户最新浏览的5条信息
             conn.ltrim(history_key, 0, 4)
-        # for i in sku_orders:
-        #     print(i.comment, i.order.user.username, str(i.update_time)[0:10])
 
         # 组织模板上下文
         context = {
-            # 'goods_sku': goods_sku,
-            # 'sku_orders': sku_orders,
-            # 'new_skus': new_skus,
             'cart_count': cart_count,
         }
 
@@ -152,35 +131,39 @@ class DetailView(APIView):
 
     def post(self, request, goods_id):
         x = {}
-
-        # 获取商品sku详细信息
         try:
             x['code'] = 1
             types = models.GoodsType.objects.all().order_by('id')
             ser_types = serilaz.ser_GoodsType(instance=types, many=True)
             x['ser_types'] = ser_types.data
+            # 获取商品sku详细信息
             goods_sku = models.GoodsSKU.objects.get(id=goods_id) #filter(id=goods_id)[0] , get(id=goods_id)
             ser_sku = serilaz.ser_GoodsSKU(instance=goods_sku, many=False)
             x['ser_sku'] = ser_sku.data
+            try:
+                # 获取新品推荐信息
+                new_skus = models.GoodsSKU.objects.filter(type=goods_sku.type).order_by('-create_time').exclude(
+                    id=goods_id)[0:2]
+                ser_new_skus = serilaz.ser_GoodsSKU(instance=new_skus, many=True)
+                x['ser_new_skus'] = ser_new_skus.data
+            except:
+                x['ser_new_skus'] = None
+
             x['msg'] = '查询成功'
         except:  #商品不存在
             x['code'] = 0
             x['msg'] = '商品不存在'
             return Response(x)
 
-
         # 获取商品的评论信息
         sku_orders = OrderGoods.objects.filter(sku=goods_sku).exclude(comment='')
-
-        #获取新品推荐信息
-        try:
-            new_skus = models.GoodsSKU.objects.filter(type=goods_sku.type).order_by('-create_time').exclude(id=goods_id)[0:2]
-        except:
-            new_skus = None
+        ser_sku_orders = serilaz.ser_OrderGoods(instance=sku_orders, many=True)
+        x['ser_sku_orders'] = ser_sku_orders.data
+        # for i in sku_orders:
+        #     print(i.comment, i.order.user.username, str(i.update_time)[0:10])
 
         print(111111111111111,'detail')
         print(goods_id)
-        print(x)
         return Response(x)
 
 

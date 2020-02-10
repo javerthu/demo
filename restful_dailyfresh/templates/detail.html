@@ -25,7 +25,7 @@
 	<div class="breadcrumb">
 		<a href="#">全部分类</a>
 		<span>></span>
-		<a href="#">{{goods_sku.type.name}}</a>
+		<a class="wtr" href="#">{{goods_sku.type.name}}</a>
 		<span>></span>
 		<a href="#">商品详情</a>
 	</div>
@@ -46,9 +46,10 @@
 				<div class="num_add fl">
 					<input type="text" class="num_show fl" value="1">
 					<a href="javascript:;" class="add fr">+</a>
-					<a href="javascript:;" class="minus fr">-</a>	
-				</div> 
+					<a href="javascript:;" class="minus fr">-</a>
+				</div>
 			</div>
+
 			<div>
 				<p>其他规格:</p>
 				<ul>
@@ -124,21 +125,49 @@ function get_sku_info() {
 	var params = {'csrfmiddlewaretoken':csrf}
     console.log(url)
     $.post(url, params, function (data) {
-        if (!data){
+        if (!data.code == 1){
             // 更新失败
-            alert('更新失败')
+            alert(data.msg)
         }
         else{
             // 更新成功
-            alert('更新成功2')
+            //
             types = data.ser_types;
-			console.log(types)
 			var str = '';
 			for (var i in types) {
                 str += '<li><a href="' + '#' + '" class="' +types[i].logo + '">' + types[i].name + '</a></li>';
             }
-            console.log(str)
             $('.subnav').html(str);
+            //
+            sku = data.ser_sku;
+            image = '/' + sku.image
+            //下面都是接受到数据后的设定页面的操作
+            $('.goods_detail_pic').children('img').attr('src',image);
+            $('.wtr').text(sku.sku_type);
+            $('.goods_detail_list').children('h3').text(sku.name);
+            $('.goods_detail_list').children('p').text(sku.desc);
+            $('.show_pirze').children('em').text(sku.price);
+            $('.show_unit').text(sku.unite);
+            $('.total').children('em').text(sku.price);
+            $('#tab_detail').children('dl').children('dd').text(sku.sku_detail);
+            //
+            sku_orders = data.ser_sku_orders;
+			var str = '';
+			for (var i in sku_orders) {
+				update_time = String(sku_orders[i].update_time).slice(0, 10)
+				str += '<dl><dt>评论时间: ' + update_time + ' 用户名:' + sku_orders[i].comment_user + '</dt><dd>评论内容: ' + sku_orders[i].comment + '</dd></dl>';
+            }
+            console.log(str)
+            $('#tab_comment').html(str);
+            //
+            new_skus = data.ser_new_skus;
+            var str = '';
+			for (var i in new_skus) {
+				h = '/detail/' + String(new_skus[i].id)
+				image = '/' + new_skus[i].image
+				str += '<li><a href="' + h + '"><img src="' + image + '"></a><h4><a href="' + h + '">' + new_skus[i].name + '</a></h4><div class="prize">￥"' + new_skus[i].price + '"</div></li>';
+               }
+            $('.new_goods').children('ul').html(str);
         }
     })
 }

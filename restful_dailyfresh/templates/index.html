@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load staticfiles %}
+{% block title %}天天生鲜-首页{% endblock title %}
+{% block topfiles %}
+	<script type="text/javascript" src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
+	<script type="text/javascript" src="{% static 'js/jquery-ui.min.js' %}"></script>
+	<script type="text/javascript" src="{% static 'js/slide.js' %}"></script>
+{% endblock topfiles %}
+
+{% block body %}
+
+	<div class="navbar_con">
+		<div class="navbar">
+			<h1 class="fl">全部商品分类</h1>
+			<ul class="navlist fl">
+				<li><a href="">首页</a></li>
+				<li class="interval">|</li>
+				<li><a href="">手机生鲜</a></li>
+				<li class="interval">|</li>
+				<li><a href="">抽奖</a></li>
+			</ul>
+		</div>
+	</div>
+
+	<div class="center_con clearfix">
+		<ul class="subnav fl">
+			{% for banner in types %}
+				<li><a href="#model0{{ forloop.counter }}" class={{banner.logo}}>{{banner.name}}</a></li>
+			{% endfor %}
+		</ul>
+		<div class="slide fl">
+			<ul class="slide_pics">
+				{% for banner in goods_banners %}
+                    <li><a href="#"><img src={{banner.image}} alt="幻灯片"></a></li>
+				{% endfor %}
+			</ul>
+			<div class="prev"></div>
+			<div class="next"></div>
+			<ul class="points"></ul>
+		</div>
+
+		<div class="adv fl">
+		</div>
+	</div>
+
+	{% for banner in types %}
+		<div class="list_model">
+			<div class="list_title clearfix">
+				<h3 class="fl" id="model0{{ forloop.counter }}">{{banner.name}}</h3>
+				<div class="subtitle fl">
+					<span>|</span>
+
+
+						<a href="#">盒装草莓</a>
+
+						<a href="#">柠檬</a>
+
+				</div>
+				<a href="#" class="goods_more fr" id="fruit_more">查看更多 ></a>
+			</div>
+
+			<div class="goods_con clearfix">
+				<div class="goods_banner fl"><img src={{banner.image}}></div>
+				<ul class="goods_list fl">
+				{% for i in banner.show_obj %}
+					<li>
+						<h4><a href="/detail/{{i.sku.id}}">{{i.sku.name}}</a></h4>
+						<a href="/detail/{{i.sku.id}}"><img src={{i.sku.image}}></a>
+						<div class="prize">¥ {{i.sku.price}}</div>
+					</li>
+				{% endfor %}
+				</ul>
+			</div>
+		</div>
+	{% endfor %}
+
+    
+{% endblock body %}
+
+{% block bottomfiles %}
+<script type="text/javascript">
+update_page_info()
+// 计算被选中的商品的总件数和总价格
+function update_page_info() {
+	$.get('/user/test', params, function (data) {
+		if (!data){
+			// 更新失败
+			alert('哦哦1')
+		}
+		else{
+			// 更新成功
+			alert('啊啊')
+		}
+	})
+
+    var params = {'sku_id':1, 'count':7}
+    $.get('/goods/api/', params, function (data) {
+        if (!data){
+            // 更新失败
+            alert('哦哦2')
+        }
+        else{
+            // 更新成功
+			promotion_banners = data.ser_promotion_banners;
+            console.log(promotion_banners)
+			var str = '';
+			for (var i in promotion_banners) {
+                str += '<a href="' + '#' + '"><img src="' + promotion_banners[i].image + '"></a>';
+            }
+            console.log(str)
+            $('.adv').html(str);
+        }
+    })
+}
+
+</script>
+
+{% endblock bottomfiles %}
+
+    
+    
+    

@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load staticfiles %}
+{% block title %}天天生鲜-商品列表{% endblock title %}
+
+{% block body %}
+	<div class="navbar_con">
+		<div class="navbar clearfix">
+			<div class="subnav_con fl">
+				<h1>全部商品分类</h1>	
+				<span></span>			
+				<ul class="subnav">
+					{% for banner in types %}
+						<li><a href="{% url 'goods:list' banner.id 1 %}" class={{banner.logo}}>{{banner.name}}</a></li>
+					{% endfor %}
+				</ul>
+			</div>
+			<ul class="navlist fl">
+				<li><a href="{% url 'goods:index' %}">首页</a></li>
+				<li class="interval">|</li>
+				<li><a href="">手机生鲜</a></li>
+				<li class="interval">|</li>
+				<li><a href="">抽奖</a></li>
+			</ul>
+		</div>
+	</div>
+
+	<div class="breadcrumb">
+		<a href="#">全部分类</a>
+		<span>></span>
+		<a href="#">{{ goods_type.name }}</a>
+	</div>
+
+	<div class="main_wrap clearfix">
+		<div class="l_wrap fl clearfix">
+			<div class="new_goods">
+				<h3>新品推荐</h3>
+				<ul>
+					{% for banner in new_skus %}
+						<li>
+							<a href="{% url 'goods:detail' banner.id %}"><img src={{banner.image}}></a>
+							<h4><a href="/detail/{{banner.id}}">{{banner.name}}</a></h4>
+							<div class="prize">￥{{banner.price}}</div>
+						</li>
+					{% endfor %}
+				</ul>
+			</div>
+		</div>
+
+		<div class="r_wrap fr clearfix">
+			{% csrf_token %}
+			<div class="sort_bar">
+				<a href="{% url 'goods:list' goods_type.id 1 %}" {% if sort == 'id'  %}class="active"{% endif %}>默认</a>
+				<a href="{% url 'goods:list' goods_type.id 1 %}?sort=price" {% if sort == 'price'  %}class="active"{% endif %}>价格</a>
+				<a href="{% url 'goods:list' goods_type.id 1 %}?sort=hot" {% if sort == 'sales'  %}class="active"{% endif %}>人气</a>
+			</div>
+
+			<ul class="goods_type_list clearfix">
+				{% for banner in skus_page.object_list %}
+					<li>
+						<a href="{% url 'goods:detail' banner.id %}"><img src={{banner.image}}></a>
+						<h4><a href="{% url 'goods:detail' banner.id %}">{{banner.name}}</a></h4>
+						<div class="operate">
+							<span class="prize">￥{{banner.price}}</span>
+							<span class="unit">{{banner.price}}/{{banner.unite}}</span>
+							<a href="javascript:;" sku_id="{{ banner.id }}" type_id="{{ banner.type_id }}" class="add_goods" id="add_cart" title="加入购物车"></a>
+						</div>
+					</li>
+				{% endfor %}
+			</ul>
+
+			<div class="pagenation">
+                {% if skus_page.has_previous %}
+                    <a href="{% url 'goods:list' goods_type.id skus_page.previous_page_number%}">上一页</a>
+                {% endif %}
+            {% for pageindex in skus_page.paginator.page_range %}
+                {% if pageindex == skus_page.number %}
+                    <a href="{% url 'goods:list' goods_type.id pageindex %}" class="active">{{ pageindex }}</a>
+                {% else %}
+                    <a href="{% url 'goods:list' goods_type.id pageindex %}">{{ pageindex }}</a>
+                {% endif %}
+            {% endfor %}
+				{% if skus_page.has_next %}
+					<a href="{% url 'goods:list' goods_type.id skus_page.next_page_number  %}">下一页</a>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+{% endblock body %}
+
+{% block bottom %}
+	<div class="add_jump"></div>
+{% endblock bottom %}
+
+{% block bottomfiles %}
+	<script type="text/javascript" src="/static/js/jquery-1.12.2.js"></script>
+	<script type="text/javascript">
+
+
+		$('.operate').children('a').click(function (){
+			//获取商品id和数量,由于html模板原本没穿商品id信息,动态给65行的标签添加了一个sku.id的属性  alert(sku_id+':'+count+':'+csrf) //弹出提示框的js函数
+            sku_id = $(this).attr('sku_id')
+            count = parseInt(1)
+            csrf = $('input[name="csrfmiddlewaretoken"]').val()
+
+            type_id = $(this).attr('type_id')
+            page = $(this).attr('page')
+
+            f_type_id = parseInt(type_id)
+            f_page = parseInt(page)
+
+			params = {'sku_id':sku_id, 'count':count, 'csrfmiddlewaretoken':csrf}
+			 $.post('{% url 'cart:add' %}', params, function (data) {
+                if (data.res == 5){
+                    // 添加成功
+                    //alert('/list/' + type_id + '/' + page)
+					//重新加载
+					location.reload()
+                    //window.location.href = '/list/' + type_id + '/' + page;
+                }
+                else{
+                    alert(data.errmsg)
+                }
+            })
+		})
+
+	</script>
+{% endblock bottomfiles %}

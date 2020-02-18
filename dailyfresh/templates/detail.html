@@ -7,8 +7,8 @@
 	<div class="navbar_con">
 		<div class="navbar clearfix">
 			<div class="subnav_con fl">
-				<h1>全部商品分类</h1>	
-				<span></span>			
+				<h1>全部商品分类</h1>
+				<span></span>
 				<ul class="subnav">
 					{% for banner in types %}
 						<li><a href="{% url 'goods:list' banner.id 1 %}" class={{banner.logo}}>{{banner.name}}</a></li>
@@ -48,8 +48,8 @@
 				<div class="num_add fl">
 					<input type="text" class="num_show fl" value="1">
 					<a href="javascript:;" class="add fr">+</a>
-					<a href="javascript:;" class="minus fr">-</a>	
-				</div> 
+					<a href="javascript:;" class="minus fr">-</a>
+				</div>
 			</div>
 			<div>
 				<p>其他规格:</p>

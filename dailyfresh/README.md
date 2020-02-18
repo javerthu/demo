@@ -16,6 +16,8 @@ B2C(Business-to-Customer), 企业对个人的一种商业模式，简称"商对�
 采用BS结构, 即Browser/Server(浏览器/服务器)结构,构建一个web的网站商城系统, 其架构逻辑:
 ![frame](Readme/framework.png)
 
+#### 技术架构
+* 管理账号体验,账号:123 密码:123
 
 ### Links
 * 项目地址

@@ -1,0 +1,182 @@
+一、ssh服务搭建
+ssh是一种用于安全访问远程服务的网络协议，他将客户端与服务端之间的消息通过加密保护起来，取得一定安全作用
+
+##为什么需要ssh服务
+应用广泛
+区别于telnet,ftp安全性考虑
+加密
+
+##对称加密和非对称
+	-对称加密
+	在对称加密中，客户端和服务端使用同一个秘钥对数据进行加密解密
+	优点：加密强度大，破解难
+	缺点：1、秘钥本身存在安全因素。2、非对称加密
+	-非对称加密
+	在非对称加密中有两个秘钥，公开秘钥，这个秘钥配对产生使用，用公钥加密数据，必须用相对应的私钥才能解开，
+	私钥无法通过公钥获取，公钥可以被公开，私钥必须安全保存
+	工作流程：
+	1、服务器端接收远程客户端登录请求，将自己的公钥发送给客户端
+	2、客户端利用这个公钥对数据进行加密
+	3、客户端将加密的信息发送给服务端
+	4、服务端利用自己的私钥进行解密，验证合法性
+	5、返回结果给客户端响应
+
+
+1、##基本使用
+使用某个用户登录远程主机
+	ssh user@host
+如果本地用户和远程用户名一直，则可省略用户名
+	ssh host
+ssh默认端口为22
+	ssh -p 22 user@host
+
+
+2、免密登录
+[root@centos7 ~]# ping 192.168.8.250             （配置两台服务器确保能ping通）
+PING 192.168.8.250 (192.168.8.250) 56(84) bytes of data.
+64 bytes from 192.168.8.250: icmp_seq=1 ttl=64 time=0.428 ms
+64 bytes from 192.168.8.250: icmp_seq=2 ttl=64 time=0.879 ms
+
+
+
+[root@centos7 ~]# yum install openssh（服务端，客户端都需要，并且sshd服务要开启）
+
+####客户端
+[root@bobo ~]# ssh-keygen -t rsa			####产生秘钥对
+Generating public/private rsa key pair.
+Enter file in which to save the key (/root/.ssh/id_rsa): 
+Created directory '/root/.ssh'.
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /root/.ssh/id_rsa.
+Your public key has been saved in /root/.ssh/id_rsa.pub.
+The key fingerprint is:
+SHA256:+hWJotZY8AFcMdmOfaxEvXZ11qRFOcAjCGCdEgtGStU root@bobo.com
+The key's randomart image is:
++---[RSA 2048]----+
+| .o*o=B=o.. ...o*|
+|. o +Eo+o... o.=+|
+| .  ..o= . ...oo.|
+|     o..+.=..    |
+|      +.S+o.     |
+|     = o.  .     |
+|    + o   .      |
+|   .   . .       |
+|        .        |
++----[SHA256]-----+
+
+
+[root@bobo ~]# cd .ssh/		####默认生成在家目录的 .ssh目录中
+[root@bobo .ssh]# ls
+id_rsa  id_rsa.pub			####生成的私钥，公钥文件
+
+[root@bobo .ssh]# ssh-copy-id 192.168.8.87			###将公钥发送到服务端，以当前用户连接远程，如果不是用username@ip
+The authenticity of host '192.168.8.87 (192.168.8.87)' can't be established.
+ECDSA key fingerprint is SHA256:rsFvrkT0JuPy7p98foU1bMVLznH9GjzGf7iKEKcvpTY.
+ECDSA key fingerprint is MD5:1c:28:cd:22:7b:0f:99:57:c3:b5:15:6d:92:48:cc:76.
+Are you sure you want to continue connecting (yes/no)? yes
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+root@192.168.8.87's password: 					#####当前用户密码，上面是root，所以输出root密码
+
+Number of key(s) added: 1
+
+Now try logging into the machine, with:   "ssh '192.168.8.87'"
+and check to make sure that only the key(s) you wanted were added.            #####这就就成功了
+
+[root@bobo ~]# ssh 192.168.8.87				#####接下来ssh远程主机就无需密码，直接用秘钥登录
+Last login: Sun Mar 22 14:25:04 2020
+[root@centos7 ~]# 
+
+
+####去服务端检查
+[root@centos7 .ssh]# ls       ######服务端的家目录的.ssh目录
+authorized_keys
+
+3、利用主机别名进行ssh登录
+[root@bobo .ssh]# vim config  		#####在客户端的~/.ssh 创建一个config文件（没有就创建，有就编辑添加）
+Host    Server
+        Hostname        192.168.8.87
+        Port            22
+        User            root
+        IdentityFile    ~/.ssh/id_rsa	#####私钥地址
+[root@bobo .ssh]# ssh Server 		#####就可以使用别名登录了
+Last login: Sun Mar 22 15:06:28 2020 from 192.168.8.250
+[root@centos7 ~]# 
+
+
+4、ssh配置文件
+https://blog.51cto.com/3381847248/2066599  	#####这个网站详解
+主要了解配置   修改默认端口22
+远程root用户登录与否
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

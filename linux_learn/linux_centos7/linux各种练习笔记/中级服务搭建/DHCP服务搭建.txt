@@ -1,0 +1,153 @@
+# DHCP服务器
+	DHCP（Dynamic Host configuration Protocol）动态主机配置协议
+	DHCP协议可以为客户端自动发放TCP/IP参数信息
+	ip地址，子网掩码，网关，DNS等信息
+	避免了一些繁琐的地址配置操作
+
+
+## DHCP工作原理
+	1.客户端需要寻求网络ip地址和其他网络参数，向网络中发送广播请求，客户端发出的请求名为HHCP DISCOVER，如果广播网络中有可以分配ip地址的服务器，服务器会返回相应的应答，
+	告诉客户端可以分配IP地址，服务器返回的包叫做DHCP OFFER包含ip地址和其他参数
+	2.如果服务端在发出DHCP OFFER包后，会广播DHCP REQUEST包，用以通知DHCP服务器和未选定的DHCP服务器
+	3.若没收到，则会重新发送请求
+	4.服务端收到DHCP REQUEST后检查收到的包，如果包内的地址和所提供的地址一致，，证明客户端使用的事自己提供的地址，若不是则发送DHCPNAK
+	5.客户端在收到包后，检查内部ip地址和租期时间，如发现有问题，则拒绝使用这个地址，然后重新广播DISCOVER
+
+
+## DHCP租期时间
+	申请到IP地址后，DHCP客户端中会保存三个定时器，分别用来控制租期更新，租期重绑定和租期失效。DHCP服务器为DHCP客户端分配IP地址时会指定三个定时器的值。缺省租期默认为1天。
+	剩余50%的租期时，DHCP客户端开始租约更新过程，DHCP客户端向分配IP地址的服务器发送DHCP请求报文来申请延长IP地址的租期。若无回复等待到使用87.5%
+	重绑定定时器在租期剩余12.5%的时候超时，超时后，DHCP客户端会认为原DHCP服务器不可用，开始重新发送DHCP请求报文。网络上任何一台DHCP服务器都可以应答DHCP确认或DHCP非确认报文。
+
+	如果收到DHCP确认报文，DHCP客户端重新进入绑定状态，复位租期更新定时器和重绑定定时器。
+	如果收到DHCP非确认报文，DHCP客户端进入初始化状态。此时，DHCP客户端必须立刻停止使用现有IP地址，重新申请IP地址。
+
+
+###服务端
+## 配置DHCP服务器
+	
+	- 软件安装
+		- yum install dhcp
+		- rpm -qa | grep dhcp
+
+	- DHCP主配置文件
+		- /etc/dhcp/dhcpd.conf
+	- 启动服务
+		- systemctl restart dhcpd
+	- 防火墙允许DHCP服务通过
+		- firewall
+
+若systemctl restart dhcpd失败不要急，初始时配置文件是空的需要修改配置文件
+Job for dhcpd.service failed because the control process exited with error code. See “systemctl status dhcpd.service” and “journalctl -xe” for details
+[root@centos7 ~]# vim /etc/dhcp/dhcpd.conf 		#######可以使用 r /usr/share/doc/dhcp*/dhcpd.conf.example   把案例文档抄来再进行修改
+#
+# DHCP Server Configuration file.
+#   see /usr/share/doc/dhcp*/dhcpd.conf.example
+#   see dhcpd.conf(5) man page
+#
+# dhcpd.conf
+
+default-lease-time 600;				#全局参数  默认最小租期时间 单位秒
+max-lease-time 7200;				#全局参数 默认最大的租期事假
+
+
+# A slightly different configuration for an internal subnet.
+subnet 192.168.8.0 netmask 255.255.255.0 {		#一定要根据自己服务端的ip地址配置，(妈的，网上博客全是一样的10.254.239.0 默认配置文件的信息，麻烦自己成功后再发博客有这么难吗？)
+  range 192.168.8.50 192.168.8.55;
+  option domain-name-servers 8.8.8.8,114.114.114.114;
+  option domain-name "example.com";
+  option routers 192.168.8.254;				#同上根据自己的配
+  option broadcast-address 192.168.8.255;
+  default-lease-time 600;				#局部参数，当有全局参数时不生效
+  max-lease-time 7200;
+}
+
+# be booted with DHCP, unless there is an address range on the subnet
+# to which a BOOTP client is connected which has the dynamic-bootp flag
+# set.
+host fantasia {
+  hardware ethernet 08:00:07:26:c0:a5;			#主机配置项，可以该为bobo地址如：hardware ethernet 00:0c:29:05:c7:3a;
+  fixed-address fantasia.fugue.com;			#绑定主机分配地址如：fixed-address 192.168.8.77;	则bobo服务器请求直接分配192.168.8.77地址
+}
+
+[root@centos7 ~]# systemctl start dhcpd
+[root@centos7 ~]# watch systemctl status dhcpd
+● dhcpd.service - DHCPv4 Server Daemon
+   Loaded: loaded (/usr/lib/systemd/system/dhcpd.service; disabled; vendor preset: disabled)
+   Active: active (running) since Sun 2020-03-22 17:12:03 CST; 1h 1min ago
+     Docs: man:dhcpd(8)
+           man:dhcpd.conf(5)
+ Main PID: 6549 (dhcpd)
+   Status: "Dispatching packets..."
+    Tasks: 1
+   CGroup: /system.slice/dhcpd.service
+           └─6549 /usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf -user dhcpd -group dhcpd --no-pid
+
+Mar 22 18:14:50 centos7 dhcpd[8457]:    you want, please write a subnet declaration
+Mar 22 18:14:50 centos7 dhcpd[8457]:    in your dhcpd.conf file for the network segment
+Mar 22 18:14:50 centos7 dhcpd[8457]:    to which interface virbr0 is attached. **
+Mar 22 18:14:50 centos7 dhcpd[8457]:
+Mar 22 18:14:50 centos7 dhcpd[8457]: Listening on LPF/ens32/00:0c:29:76:69:b7/192.168.8.0/24
+Mar 22 18:14:50 centos7 systemd[1]: Started DHCPv4 Server Daemon.
+Mar 22 18:14:50 centos7 dhcpd[8457]: Sending on   LPF/ens32/00:0c:29:76:69:b7/192.168.8.0/24
+Mar 22 18:14:50 centos7 dhcpd[8457]: Sending on   Socket/fallback/fallback-net
+###以上是初始状态
+
+###把服务端bobo的ip删除改为dhcp模式
+												###本来应该是有DISCOVER包和，OFFER包（包含192.168.8.51地址，该地址是地址池的地址）					
+Mar 22 18:15:05 centos7 dhcpd[8457]: DHCPREQUEST for 192.168.8.51 from 00:0c:29:05:c7:3a (bobo) via ens32		###md之前把文件夹搞没了，因为之前连接过，所以直接发的是REQUEST包
+Mar 22 18:15:05 centos7 dhcpd[8457]: DHCPACK on 192.168.8.51 to 00:0c:29:05:c7:3a (bobo) via ens32			###确认包
+
+这样dhcp服务就启动成功了
+
+
+- 主配置文件简要说名
+	- # dhcpd.conf
+		#定义全局参数：默认搜索域
+		# Sample configuration file for ISC dhcpd
+		#
+	
+		# option definitions common to all supported networks...
+		#全局参数 代表域名服务器，多个DNS服务器可以使用逗号隔开
+		option domain-name "example.org";
+		option domain-name-servers ns1.example.org, ns2.example.org;
+		
+		#全局参数  默认最小租期时间 单位秒
+		default-lease-time 600;
+		#全局参数 默认最大的租期事假
+		max-lease-time 7200;
+
+	# This is a very basic subnet declaration.
+	#定义子网 10.254.239.0/255.255.255.224
+	subnet 10.254.239.0 netmask 255.255.255.224 {
+	  #ip 地址池段   10.254.239.10 10.254.239.20
+	  range 10.254.239.10 10.254.239.20;
+	
+	  #默认网关 rtr-239-0-1.example.org
+	  option routers rtr-239-0-1.example.org, rtr-239-0-2.example.org;
+	}
+
+	#主机定义项 定义主机fantasia 通过mac地址绑定该主机，绑定ip
+	host fantasia {
+	  hardware ethernet 08:00:07:26:c0:a5;
+	  #绑定固定的ip地址
+	  fixed-address fantasia.fugue.com;
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

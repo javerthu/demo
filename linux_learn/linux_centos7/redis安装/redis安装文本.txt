@@ -1,0 +1,89 @@
+因为wget redis网址太慢了，再尝试本地yum源，阿里centos7源安装redis失败后，给出remi源安装redis方法
+
+1、wget http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+	rpm -Uvh remi-release-7.rpm                                                  获取remi的rpm包，并解压，解压出错加 --force --nodeps
+
+2、vim /etc/yum.repos.d/remi.repo   
+	将其中 [remi] 下的enabled=0改为1，保存退出，配置完成。
+
+3、yum clean all   ->  yum repolist 看是否成功
+
+4、yum --enablerepo=remi install -y redis　　//--enablerepo指定yum源
+
+5、redis-cli --version　　//安装完成后使用命令查看一下版本   出现则成功
+
+6、[root@centos7 yum.repos.d]# systemctl start redis
+[root@centos7 yum.repos.d]# systemctl enable redis
+Created symlink from /etc/systemd/system/multi-user.target.wants/redis.service to /usr/lib/systemd/system/redis.service.
+[root@centos7 yum.repos.d]# systemctl status redis
+● redis.service - Redis persistent key-value database
+   Loaded: loaded (/usr/lib/systemd/system/redis.service; enabled; vendor preset: disabled)
+  Drop-In: /etc/systemd/system/redis.service.d
+           └─limit.conf
+   Active: active (running) since Sun 2020-03-08 22:25:29 CST; 39s ago
+ Main PID: 11302 (redis-server)
+   Status: "Ready to accept connections"
+   CGroup: /system.slice/redis.service
+           └─11302 /usr/bin/redis-server 127.0.0.1:6379
+
+Mar 08 22:25:29 centos7 systemd[1]: Starting Redis persistent key-value database...
+Mar 08 22:25:29 centos7 systemd[1]: Started Redis persistent key-value database.
+
+开启，并且开机自启redis服务，并且检查状态
+
+7、redis配置文件/etc/redis.conf
+[root@centos7 /]# vim /etc/redis.conf 
+
+
+8、redis的简单使用
+最最简单的使用：redis-cli -h [IP地址] -p [端口号]。如果是连接本地，-h和-p都可以省略。
+[root@centos7 rds]# redis-cli
+127.0.0.1:6379> 
+#别人的示范操作
+[root@youxi1 ~]# redis-cli
+127.0.0.1:6379> set system centos　　//创建键值
+OK
+127.0.0.1:6379> get system　　//获取键值
+"centos"
+127.0.0.1:6379> exit
+[root@youxi1 ~]# systemctl restart redis　　//重启
+[root@youxi1 ~]# redis-cli
+127.0.0.1:6379> get system　　//可以看到键值是存在的
+"centos"
+127.0.0.1:6379> set name "youxi" EX 10　　//如这般设置，则表示该键值值存在10秒
+OK
+127.0.0.1:6379> get name　　//10秒过后再次查看，这就是一个临时键值
+(nil)
+
+9、如果开启认证功能
+[root@youxi1 ~]# vim /etc/redis.conf
+requirepass 123456　　//在第507行，去除注释，设置认证密码
+[root@youxi1 ~]# systemctl restart redis
+此时再次使用redis
+[root@youxi1 ~]# redis-cli
+127.0.0.1:6379> get system　　//没有认证时，会报错
+(error) NOAUTH Authentication required.
+127.0.0.1:6379> auth 123456　　//认证
+OK
+127.0.0.1:6379> get system　　//认证后，再次获取键值，成功
+"centos"
+
+
+10、基本完成redis安装和简单使用了
+
+参考文档:https://www.cnblogs.com/diantong/p/11255019.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

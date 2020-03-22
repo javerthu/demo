@@ -1,0 +1,79 @@
+一、下载好xftp和xshell（问题挺多，最主要就是强制更新不然不让用了）
+解决办法 地址：https://blog.csdn.net/zxc_user/article/details/104331421
+1. 找到安装目录的 `nslicense.dll`文件复制出来
+2. 下载c32asm
+3. 用c32asm以16进制形式打开nslicense
+4. 搜索16进制： 7F0C81F98033E1010F8680
+5. 替换成     ： 7F0C81F98033E1010F8380
+6. 也就是将最后两位86替换成83 然后保存，并替换文件
+7. 如果搜不到7F0C81F98033E1010F8680 可以缩短几位进行搜索 比如搜索7F0C81F98033E101试试看
+
+
+二、把对应文件传输过去
+[root@centos7 bobo]# ls
+bbs  Discuz_X2.5_SC_UTF8.zip
+
+
+三、配置httpd服务(apache）
+关闭防火墙(之再学如何配置防火墙):systemctl stop firewalld
+软件包:Apache    软件包名:httpd       配置文件:/etc/httpd/conf/httpd.conf
+默认根目录:/var/www/html          首页文件:index.html
+yum install httpd -y
+systemctl     start/enable    httpd
+配置mariadb
+yum install mariadb  mariadb-server    -y
+systemctl     start/enable   mariadb
+mysql_secure_installation  ->设置完密码后一路回车即可
+
+
+
+
+cp -p Discuz_X2.5_SC_UTF8.zip  /var/www/html/
+cd /var/www/html/
+[root@centos7 html]# ls
+Discuz_X2.5_SC_UTF8.zip
+[root@centos7 html]# unzip Discuz_X2.5_SC_UTF8.zip 
+
+[root@centos7 html]# ls
+Discuz_X2.5_SC_UTF8.zip  readme  upload  utility
+[root@centos7 html]# mv upload bbs
+[root@centos7 html]# ls
+bbs  Discuz_X2.5_SC_UTF8.zip  readme  utility
+[root@centos7 html]# chmod 777 bbs/ -R
+
+
+打开Linux里的浏览器
+记住安装php环境（MDphp写的）
+yum install php* -y
+
+进入：127.0.0.1/bbs
+重启httpd服务
+systemctl restart httpd
+setenforce 0
+systemctl restart httpd
+
+即可
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,165 @@
+一、如何创建带外键的两张表
+一对多
+-- --人表
+CREATE TABLE person(
+id int PRIMARY KEY auto_increment, name varchar(50)
+);
+# PRIMARY KEY  主键   auto_increment   自动增长
+-- --车表
+CREATE TABLE car(
+name VARCHAR(20),    color VARCHAR(20),    pid int,
+CONSTRAINT c_p_fk FOREIGN KEY(pid)  REFERENCES  person(id)
+);
+#FOREIGN KEY(pid)  外键pid  关联person表的id，REFERENCES  person(id)
+
+
+
+
+多对多表的创建
+-- CREATE TABLE teach(tid int PRIMARY KEY, name VARCHAR(50));
+-- CREATE TABLE stu(sid int PRIMARY KEY, name VARCHAR(50));
+-- CREATE TABLE teach_stu_rel(tid int , sid int);
+
+
+-- ALTER TABLE teach_stu_rel ADD CONSTRAINT    (fk_tid)         FOREIGN KEY(tid) REFERENCES teach(tid);
+-- ALTER TABLE teach_stu_rel ADD CONSTRAINT    (fk_sid)         FOREIGN KEY(sid) REFERENCES stu(sid);
+#（）里的不写也能创建成功
+
+
+二、合并结果集
+UNION（显示时去除相同行）、UNION ALL（不去除）
+注意：合并的表列数，列表类型必须相同。
+SQLEX：
+-- CREATE TABLE A(score int, name VARCHAR(50));
+-- CREATE TABLE B(score int, name VARCHAR(50));
+-- 
+-- INSERT INTO A VALUES(10, 'a'),(20, 'b'),(30, 'c');
+-- INSERT INTO B VALUES(10, 'a'),(20, 'b'),(30, 'd');
+
+-- SELECT * FROM A UNION SELECT * FROM B;
+score        name
+10	a
+20	b
+30	c
+30	d
+
+-- SELECT * FROM A UNION ALL SELECT * FROM B;
+score        name
+10	a
+20	b
+30	c
+10	a
+20	b
+30	d
+
+
+
+三、连接查询（跨表查询）
+！连接查询表并没要求设置外键。
+查表示可以起别名。如：SELECT * FROM  person p;  #p就是表person 的别名。
+person表：
+id             name
+1	laowang
+2	wc
+3	dw
+
+car表：
+name       colore       pid
+lbjn	red	1
+bm	black	1
+dz	white	3
+bwm	yellow	2
+#其中car表的pid关联person表的id
+
+#一对多查询
+-- SELECT * FROM person p,car WHERE p.id = car.pid;
+name       color         pid           id             name1
+lbjn	red	1	1	laowang
+bm	black	1	1	laowang
+bwm	yellow	2	2	wc
+dz	white	3	3	dw
+
+
+内连接查询
+-- SELECT * FROM person p INNER JOIN car ON p.id = car.pid;
+#与上面显示结果一样，写法不同而已
+name       color         pid           id             name1
+lbjn	red	1	1	laowang
+bm	black	1	1	laowang
+bwm	yellow	2	2	wc
+dz	white	3	3	dw
+
+-- SELECT p.name,car.name,car.color FROM person p INNER JOIN car ON p.id = car.pid WHERE p.id >1;
+name       name1        color           
+wc	bwm	yellow
+dw	dz	white
+
+
+
+外连接查询
+1、左连接查询
+现在在person表中添加一项 4  javert。此时car表并没有pid=4的外键。那么查询时如何把，javert也查询出来呢。左连接可以做到
+！左连接就是把左边表的数据全部查出来，右边表只查出满足条件的数据。
+-- SELECT * FROM person p LEFT JOIN car ON p.id = car.pid;
+id             name              |  name1     color         pid   
+1	laowang	      |  lbjn	       red	       1
+1	laowang	      | bm	       black	       1
+3	dw	      |  dz	       white	       3
+2	wc	      |  bwm	       yellow       2
+4	javert	      |		
+#  |为我自己加的，左边为左表，全部查出，右边为右表满足条件查出。
+
+2、右连接（和左连接相反）
+！右连接就是把右边表的数据全部查出来，左边表只查出满足条件的数据。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

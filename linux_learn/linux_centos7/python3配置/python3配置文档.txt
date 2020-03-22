@@ -1,0 +1,59 @@
+1、安装需要的依赖包 sudo yum -y install openssl-devel    bzip2-devel    expat-devel     gdbm-devel     readline-devel     sqlite-devel    zlib-devel    ibffi-devel     MySQL-python     mysql-devel
+
+
+2、进入www.python.org/ftp/python/找到需要下载的相应版本点击,找到以.tgz结尾的,右键复制链接地址如:https://www.python.org/ftp/python/3.7.3/Python-3.7.3.tgz
+
+
+3、进入虚拟机wget https://www.python.org/ftp/python/3.7.3/Python-3.7.3.tgz
+[root@centos7 py3]# ls
+Python-3.7.3.tgz
+ps(太慢可以找国内源下载)
+
+4、[root@centos7 py3]# tar -zvxf Python-3.7.3.tgz      解压包
+
+5、mkdir /user/local/python3 
+
+6、cd  Python-3.7.3
+
+7、./configure --prefix=/usr/local/python3/
+若出现gcc错误，则 yum install -y gcc 就好
+
+8、make   编译
+
+9、make install
+
+10、ls /usr/local/python3  若有bin  include  lib  share则成功
+
+11、创建环境变量(软连接)  
+[root@centos7 python3]# ln -s /usr/local/python3/bin/python3 /usr/bin/python3
+[root@centos7 python3]# ln -s /usr/local/python3/bin/pip3 /usr/bin/pip3
+[root@centos7 python3]# pip3 --version
+pip 19.0.3 from /usr/local/python3/lib/python3.7/site-packages/pip (python 3.7)
+
+
+12、测试成功与否
+[root@centos7 python3]# python --version
+Python 2.7.5
+[root@centos7 python3]# python3 --version
+Python 3.7.3
+
+到此完成Python3的安装。
+
+
+pip3 install时比较慢可以选用国内源
+[root@centos7 ~]# pip3 install django==2.2 -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+
+安装包的默认路径：/usr/local/python3/lib/python3.7/site-packages
+
+
+
+
+
+
+
+
+
+
+
+
+

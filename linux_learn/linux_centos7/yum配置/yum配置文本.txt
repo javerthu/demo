@@ -1,0 +1,70 @@
+1、cd /etc/yum.repos.d/    ->   ls一下全部删除(rm -rf ./*）或者移到一个备份目录去，总之清空
+
+2、 vim dvd.repo (打开,不存在则创建一个文件。文件一定要以.repo结尾)
+输入:
+	[dvd] #yum标识
+	name=dvd #名字
+	baseurl=file:///mnt/cdrom #光盘地址
+	gpgcheck=0  #是否校验签名，0为不，1为要
+	enabled=1   #是否开机启动,，0为不，1为要
+保存退出:wq
+
+3、创建一个挂在目录  mkdir /mnt/cdrom
+
+4、挂载光盘文件 mount    /dev/cdrom     /mnt/cdrom/
+出现(mount: /dev/sr0 is write-protected, mounting read-only)标识挂载成功
+
+5、clean all  清除缓存(bash: clean: command not found...，没有就算了，mount -a重新挂载几遍也行)
+
+
+6、yum   repolist  all  查看是否成功
+[root@centos7 yum.repos.d]# yum   repolist  all
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+dvd                                                                                 | 3.6 kB  00:00:00     
+(1/2): dvd/group_gz                                                                 | 165 kB  00:00:00     
+(2/2): dvd/primary_db                                                               | 3.2 MB  00:00:00     
+repo id                                         repo name                                    status
+dvd                                             dvd                                          enabled: 4,067
+repolist: 4,067
+表示成功
+完成yum源的安装可以yum install软件包了
+
+
+
+
+
+#######用阿里云服务器上的yum源配置（哭了版）
+把拷贝下来的阿里云yum源配置文件的所有
+将http://mirrors.cloud.aliyuncs.com  批量替换为  http://mirrors.aliyun.com
+可以用下面这条命令
+[root@centos7 test]# sed -i "s/mirrors.cloud.aliyuncs/mirrors.aliyun/g"  a.txt 
+然后就正常了，枯了
+#yum  clean  all
+#yum  makecache
+[root@centos7 yum.repos.d]# yum repolist
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+repo id                               repo name                                                           status
+base/7/x86_64                         CentOS-7                                                            10,097
+dvd                                   dvd                                                                  4,067
+epel/x86_64                           Extra Packages for Enterprise Linux 7 - x86_64                      13,211
+extras/7/x86_64                       CentOS-7                                                               335
+updates/7/x86_64                      CentOS-7                                                             1,774
+repolist: 29,484
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

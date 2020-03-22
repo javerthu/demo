@@ -1,0 +1,191 @@
+1、简单的磁盘管理挂载使用
+linux的硬件设备都保存在   /dev/           目录下。使用fdisk可以查看磁盘情况。
+[root@centos7 ~]# fdisk -l
+
+Disk /dev/sda: 214.7 GB, 214748364800 bytes, 419430400 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk label type: dos
+Disk identifier: 0x00017102
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sda1   *        2048     2099199     1048576   83  Linux
+/dev/sda2         2099200    10487807     4194304   82  Linux swap / Solaris
+/dev/sda3        10487808   419430399   204471296   83  Linux
+#此时只有sda这一块磁盘，有a1,a2,a3三个分区
+
+2、虚拟加一块磁盘
+不记得就看图，注意选择存为一个文件。
+创建完成后 fdisk -l 没看见变化时不要急，重启就好了。reboot
+[root@centos7 ~]# fdisk -l
+
+Disk /dev/sdb: 214.7 GB, 214748364800 bytes, 419430400 sectors                     ####我们创建的200G磁盘sdb
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/sda: 214.7 GB, 214748364800 bytes, 419430400 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk label type: dos
+Disk identifier: 0x00017102
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sda1   *        2048     2099199     1048576   83  Linux
+/dev/sda2         2099200    10487807     4194304   82  Linux swap / Solaris
+/dev/sda3        10487808   419430399   204471296   83  Linux
+
+
+
+
+3、操作磁盘，创建分区
+[root@centos7 ~]# fdisk /dev/sdb 
+Welcome to fdisk (util-linux 2.23.2).
+
+Changes will remain in memory only, until you decide to write them.
+Be careful before using the write command.
+
+Device does not contain a recognized partition table
+Building a new DOS disklabel with disk identifier 0xc75c48e3.
+
+Command (m for help): n                    ##n创建一个新分区，其余默认一路回车（）
+Partition type:
+   p   primary (0 primary, 0 extended, 4 free)
+   e   extended
+Select (default p): 
+Using default response p
+Partition number (1-4, default 1): 
+First sector (2048-419430399, default 2048): 
+Using default value 2048
+Last sector, +sectors or +size{K,M,G} (2048-419430399, default 419430399): 40G         ####别忘了+号
+Value out of range.
+Last sector, +sectors or +size{K,M,G} (2048-419430399, default 419430399): +40G
+Partition 1 of type Linux and of size 40 GiB is set
+
+Command (m for help): p                    #####查看已经创建的分区
+
+Disk /dev/sdb: 214.7 GB, 214748364800 bytes, 419430400 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk label type: dos
+Disk identifier: 0xc75c48e3
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sdb1            2048    83888127    41943040   83  Linux                 #######sdb1  40G已经创建完成
+
+Command (m for help): w                                                   #####保存退出
+The partition table has been altered!
+
+Calling ioctl() to re-read partition table.
+Syncing disks.
+
+
+[root@centos7 ~]# partprobe /dev/sdb                  #########立即生效
+可以fdisk -l 查看一下   ，出现下面则证明成功
+Device Boot      Start         End      Blocks   Id  System
+/dev/sdb1            2048    83888127    41943040   83  Linux
+
+
+4、创建文件系统
+一、 ###为磁盘创建  ext4文件系统
+[root@centos7 ~]# mkfs -t ext4 /dev/sdb1      
+mke2fs 1.42.9 (28-Dec-2013)
+Filesystem label=
+OS type: Linux
+Block size=4096 (log=2)
+Fragment size=4096 (log=2)
+Stride=0 blocks, Stripe width=0 blocks
+2621440 inodes, 10485760 blocks
+524288 blocks (5.00%) reserved for the super user
+First data block=0
+Maximum filesystem blocks=2157969408
+320 block groups
+32768 blocks per group, 32768 fragments per group
+8192 inodes per group
+Superblock backups stored on blocks: 
+	32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208, 
+	4096000, 7962624
+
+Allocating group tables: done                            
+Writing inode tables: done                            
+Creating journal (32768 blocks): done
+Writing superblocks and filesystem accounting information: done   
+
+二、创建磁盘挂载目录并挂载使用
+[root@centos7 ~]# mkdir /mnt/sdba
+[root@centos7 ~]# mount /dev/sdb1 /mnt/sdba/        ##挂载
+[root@centos7 ~]# mount -a              ##重新挂载
+查看是否挂载成功
+[root@centos7 ~]# df -hT
+Filesystem     Type      Size  Used Avail Use% Mounted on
+devtmpfs       devtmpfs  895M     0  895M   0% /dev
+tmpfs          tmpfs     910M     0  910M   0% /dev/shm
+tmpfs          tmpfs     910M   11M  900M   2% /run
+tmpfs          tmpfs     910M     0  910M   0% /sys/fs/cgroup
+/dev/sda3      xfs       195G  5.1G  190G   3% /
+/dev/sda1      xfs      1014M  228M  787M  23% /boot
+tmpfs          tmpfs     182M  4.0K  182M   1% /run/user/42
+tmpfs          tmpfs     182M   20K  182M   1% /run/user/0
+/dev/sr0       iso9660   4.4G  4.4G     0 100% /run/media/root/CentOS 7 x86_64
+/dev/sdb1      ext4       40G   49M   38G   1% /mnt/sdba               		  #####表示挂载成功
+使用
+[root@centos7 ~]# cd /mnt/sdba/
+[root@centos7 sdba]# touch a.txt
+[root@centos7 sdba]# echo 'woshihahadaxian' > a.txt 
+[root@centos7 sdba]# cat a.txt 
+woshihahadaxian
+#########这就可以用使用了，这是临时挂载方法
+
+
+二、永久挂载使用
+修改/etc/fstab  文件                               ####这个文件写错，系统就起不来了，要进入单用户模式去修改。
+[root@centos7 ~]# vim /etc/fstab 
+#
+# /etc/fstab
+# Created by anaconda on Sat Mar  7 00:53:37 2020
+#
+# Accessible filesystems, by reference, are maintained under '/dev/disk'
+# See man pages fstab(5), findfs(8), mount(8) and/or blkid(8) for more info
+#
+UUID=08e2487c-7b92-4213-84cf-0ea3372554cb     /                          xfs        defaults        0 0
+UUID=0cd013eb-6941-463e-ac68-994245108572    /boot                   xfs        defaults        0 0           #原本的
+UUID=4a55347d-c076-4aae-8c03-88e111ab1859    swap                    swap     defaults        0 0
+/etc/sdb1       /mnt/sdba       ext4    defaults        0 0                     #写入的
+：wq              #保存退出       reboot重启                                                           #######果然都一次歇逼了
+
+换种形式
+[root@centos7 ~]# blkid
+/dev/sda3: UUID="08e2487c-7b92-4213-84cf-0ea3372554cb" TYPE="xfs" 
+/dev/sdb1: UUID="35e1c21d-7ff3-44e9-84e1-bf59d967c4d3" TYPE="ext4"            #######注意这个UUID磁盘的标识
+/dev/sda1: UUID="0cd013eb-6941-463e-ac68-994245108572" TYPE="xfs" 
+/dev/sda2: UUID="4a55347d-c076-4aae-8c03-88e111ab1859" TYPE="swap" 
+/dev/sr0: UUID="2019-09-11-18-50-31-00" LABEL="CentOS 7 x86_64" TYPE="iso9660" PTTYPE="dos" 
+
+将原来的/etc/sdb1 ...改成下面的
+UUID=35e1c21d-7ff3-44e9-84e1-bf59d967c4d3 /mnt/sdba               ext4    defaults        0 0
+##震惊成功了..，不过还是没搞懂为什么上面那个出错了
+
+
+
+
+以上就是对磁盘分区挂载使用的初步方法。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

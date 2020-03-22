@@ -1,0 +1,283 @@
+一、循环语句
+shell提供for,while,until,select循环语句以实现特定环境下特定指令的反复利用
+
+1、for循环
+#格式一
+#变量通过赋值in里吗的值，多个赋值用空格隔开
+for 变量  in 值1  值2 ....  值n
+do
+命令序列
+done
+
+ex:
+[root@centos7 prac]# cat loop.sh 
+#!/bin/bash
+#this test for loop
+
+for i in dana erna javert
+do
+echo "hello $i"
+done
+[root@centos7 prac]# sh loop.sh 
+hello dana
+hello erna
+hello javert
+
+
+
+
+#格式二
+for  ((初始变量值；结束循环条件；运算 ))
+do
+命令
+done
+
+ex:
+[root@centos7 prac]# cat loop.sh 
+#!/bin/bash
+#this test for loop
+
+for i in {1..9}
+do
+	for ((j=1;j<=$i;j++))		#####真是他妈古怪换成 for j in {1..$i } 就是不行，上面的for i in {1..9}相当于i遍历1-9为啥这就不行？？？？
+	do
+	printf "%-8s" "`expr $i \* $j`"      ##########printf 不换行输出 "%-8s"表示8格空格  expr $i \* $j（expr的乘法真怪）
+	done			##########上面的也可改成  $((i*j))    或者$[i*j]
+	echo			#####换行（echo 空的相当于换行）
+done
+
+[root@centos7 prac]# sh loop.sh 
+1       
+2       4       
+3       6       9       
+4       8       12      16      
+5       10      15      20      25      
+6       12      18      24      30      36      
+7       14      21      28      35      42      49      
+8       16      24      32      40      48      56      64      
+9       18      27      36      45      54      63      72      81  
+
+
+2、while循环
+
+#格式一
+whlie [条件]
+do
+命令序列
+done
+ex:
+###批量创建ust1——ust20的用户
+[root@centos7 prac]# cat loop.sh 
+#!/bin/bash
+#this test for loop
+i=0
+while [ $i -lt 20 ]
+do
+useradd ust$i
+echo ust$i
+let i+=1
+done
+
+[root@centos7 prac]# id ust1
+id: ust1: no such user
+[root@centos7 prac]# sh loop.sh  
+ust0
+ust1
+ust2
+ust3
+ust4
+ust5
+ust6
+ust7
+ust8
+ust9
+ust10
+ust11
+ust12
+ust13
+ust14
+ust15
+ust16
+ust17
+ust18
+ust19
+[root@centos7 prac]# id ust1
+uid=1003(ust1) gid=1004(ust1) groups=1004(ust1)
+[root@centos7 prac]# id ust19
+uid=1021(ust19) gid=1022(ust19) groups=1022(ust19)
+###############删除用户 userdel 时记得记得➕-r 参数，不然用户的mail没移除下次再add时会失败（解决办法把/var/spool/mail/目录下相应的文件删除）
+
+
+#格式二
+##通过read命令每次读取一行文件，文件内容有多少行，while循环多少次
+while   read  -r  line
+do
+命令序列
+done   <  file
+ex：
+###打印网卡配置信息
+[root@centos7 prac]# cat loop.sh 
+#!/bin/bash
+#this test for loop
+file=/etc/sysconfig/network-scripts/ifcfg-ens32
+while   read  -r  line
+do
+echo $line
+done  < $file
+
+[root@centos7 prac]# sh loop.sh 
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=static
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=ens32
+UUID=45733d98-4f19-410e-b1e0-983dee88b3a5
+DEVICE=ens32
+ONBOOT=yes
+IPADDR=192.168.8.87
+NETMASK=255.255.255.0
+GATEWAY=192.168.8.1
+DNS1=101.198.199.200
+DNS2=192.68.8.1
+ZONE=public
+
+#######无限循环之菜单选择
+[root@centos7 prac]# cat menu.sh 
+#!/bin/bash
+#this test for menu
+while true                ######无限循环直到执行 exit 
+do
+clear
+echo .................................
+echo "1.show cpu info"
+echo "2.show netcof info"
+echo "3.show filesystem mount info"
+echo "4.exit"
+echo .................................
+read -p "your select number:" Select            ####读取用户输入的变量赋值给Select
+case $Select in
+	1)
+	cat /proc/cpuinfo		   ####相关操作命令
+	read -p "plese Enter continu"      ######给提示语输入但是不传递给任何变量（相当于在执行一次while语句）
+	;;
+	2)
+	cat /etc/sysconfig/network-scripts/ifcfg-ens32
+	read -p "plese Enter continu"
+	;;
+	3)
+	df -hT			   ####相关操作命令
+	read -p "plese Enter continu"      ######给提示语输入但是不传递给任何变量（相当于在执行一次while语句）
+	;;
+	4)
+	exit 0			   ####相关操作命令，exit  while循环结束（因为文件脚本都退出了，还不结束呢）
+	;;
+	*)
+	read -p "plase select 1-4,plese Enter continu"     ######给提示语输入但是不传递给任何变量（相当于在执行一次while语句）
+esac	###退出case
+done	##while的退出标识
+
+3、until循环
+批量删除之前创建的用户
+[root@centos7 prac]# cat loop.sh 
+#!/bin/bash
+#this test for loop
+i=20
+until [ $i -eq 0 ]
+do
+userdel -r ust$i
+echo ust$i
+let i-=1
+done
+
+4、select语句
+select用来生成菜单工具
+select循环与for循环格式相同
+
+#select生成提问菜单，通过echo 回显
+[root@centos7 prac]# cat loop.sh 
+#!/bin/bash
+#this test for loop
+echo "where are you from"
+select var in 'BJ' 'CQ' 'SH' 'KM' 'NJ'
+do
+break
+done
+echo "you come from $var"
+
+[root@centos7 prac]# sh loop.sh 
+where are you from
+1) BJ
+2) CQ
+3) SH
+4) KM
+#? 3
+you come from SH
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

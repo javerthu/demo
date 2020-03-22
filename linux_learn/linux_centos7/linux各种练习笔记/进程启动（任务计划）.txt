@@ -1,0 +1,122 @@
+一、直接启动进程（前台启动进程）
+[root@centos7 ~]# sleep 5
+
+
+
+二、后台启动进程
+[root@centos7 ~]# sleep 1000 &
+[1]                          3221
+序列号                    进程号
+
+[root@centos7 ~]# jobs            #####查看所有后台任务
+[1]+  Running                 sleep 1000 &
+
+
+[root@centos7 ~]# fg 1                 ########将后台任务调到前台，fg  任务序列号
+sleep 1000
+
+
+######问题：fg 调出的任务能在移回后台吗？
+
+
+三、调度启动（计划任务）
+1、一次性计划任务
+echo  'aaa' 命令好像结果是发到邮箱里
+[root@centos7 ~]# date
+Mon Mar 16 00:36:08 CST 2020
+[root@centos7 ~]# at 00:38                     #########指定任务时间
+at> mkdir /home/bobo/wtf                    ########指定任务内容
+at> <EOT>                                              ##### ctrl +D 提交
+job 2 at Mon Mar 16 00:38:00 2020 
+
+###########查看计划任务
+[root@centos7 ~]# atq
+2	Mon Mar 16 00:38:00 2020 a root
+[root@centos7 ~]# ll /home/bobo/     
+drwxr-xr-x. 2 root root       6 Mar 16 00:38 wtf        ######发现任务在00：38执行，以root身份创建了wtf文件夹
+
+此时在atq则无显示
+                                 
+
+
+2、重复性计划任务     [-u  username]可填写，不填则默认操作用户
+[root@centos7 ~]# crontab -e         [-u  username]                    ######会进入vim编辑器，编辑任务
+no crontab for root - using an empty one                                 ######输入：*/1 * * * * echo  'hello'
+crontab: installing new crontab
+
+#######查看
+[root@centos7 ~]# crontab -l     [-u  username]
+*/1 * * * * echo  'hello'
+
+[root@centos7 ~]# date
+Mon Mar 16 00:54:26 CST 2020
+You have new mail in /var/spool/mail/root           #########echo 命令发送到邮箱
+
+[root@centos7 ~]# crontab -r     [-u  username]             ########删除用户的计划任务（全）。若只想删除其中几个，可用crontab -e         [-u  username]进入编辑器删除
+[root@centos7 ~]# crontab -l      [-u  username]
+no crontab for root
+
+计划任务各数值含义
+*/1                      *                         *                        *                    *                       echo  'hello'
+分（0-59）          时（0-23）          日｛1-31｝         月（1-12）     星期（0-7）       命令（任务）
+30                       17                       *                        *                    1-5                    command            ######周一到周五，每天17：30执行command命令
+30                       8                        *                         *                    1,3,5                  command            ######周一,周三,周五的8：30执行command命令
+0                         8-18/2                *                         *                    *                       command             ######每天8:00-18:00，每隔2个小时执行command命令
+0                         0                        */3                      *                    *                       command             ######每隔三天0:00，执行command命令
+
+练习：
+1、每天早上7.50开启ssh服务，22.50关闭
+50                       7                        *                          *                    *                      systemctl   start   sshd
+50                       22                      *                          *                    *                       systemctl   stop   sshd
+
+2、每周1，3，5的17：50开始每隔20分钟打包备份/etc/httpd 目录
+50/20                 17                       *                          *                    1,3,5                  tar  -zvcf   httpd.bak.gz    /etc/httpd
+
+3、每周六7.30重启httpd服务
+30                    7                          *                           *                   6                       systemctl   restart   sshd
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

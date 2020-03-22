@@ -1,0 +1,65 @@
+一、如何修改系统时区
+/etc/localtime
+1、修改/etc/localtime文件，将/usr/share/zoneinfo找到相对于的失去拷贝到/etc/localtime文件中
+2、软连接
+[root@centos7 prac]# ln -sf /usr/share/zoneinfo/posix/Asia/Shanghai /etc/localtime 
+
+
+3、chrony
+[root@centos7 ~]# yum install chrony                             #####安装
+[root@centos7 ~]# firewall-cmd --permanent --add-service=ntp 	给ntp放行
+success
+[root@centos7 ~]# firewall-cmd --reload 
+success
+[root@centos7 ~]# systemctl start chronyd
+[root@centos7 ~]# systemctl enable chronyd
+Created symlink from /etc/systemd/system/multi-user.target.wants/chronyd.service to /usr/lib/systemd/system/chronyd.service.
+[root@centos7 ~]# systemctl restart chronyd
+[root@centos7 ~]# systemctl status chronyd
+
+配置chrony配置
+/etc/chrony.conf
+[root@centos7 ~]# vim /etc/chrony.conf 
+加server 自己ip地址  			#####或者加自己主机的地址（我就是加自己主机的ip地址）
+ server 192.168.8.86
+
+[root@centos7 ~]# systemctl restart chronyd.service 
+[root@centos7 ~]# timedatectl  	###当你发现下面为no时，别慌重启ntp服务即可
+NTP enabled: yes			####查下ntp服务是否开启
+NTP synchronized: no
+
+[root@centos7 ~]# systemctl stop ntpd
+[root@centos7 ~]# ntpd -gq		###重新校对时间
+ntpd: time set +28.769942s
+[root@centos7 ~]# 
+[root@centos7 ~]# systemctl start ntpd
+[root@centos7 ~]# date
+Sat Mar 21 15:42:47 CST 2020
+[root@centos7 ~]# timedatectl
+      Local time: Sat 2020-03-21 15:42:59 CST
+  Universal time: Sat 2020-03-21 07:42:59 UTC
+        RTC time: Sat 2020-03-21 07:42:59
+       Time zone: posix/Asia/Shanghai (CST, +0800)
+     NTP enabled: yes
+NTP synchronized: yes
+ RTC in local TZ: no
+      DST active: n/a
+
+搞定
+[root@centos7 ~]# date
+Sat Mar 21 15:46:31 CST 2020
+[root@centos7 ~]# date  -s  '2017-07-21 15:41:00'
+Fri Jul 21 15:41:00 CST 2017
+[root@centos7 ~]# date
+Fri Jul 21 15:41:02 CST 2017
+[root@centos7 ~]# systemctl  restart  chronyd       	#####？？这个东西到底有啥用，最后还是靠ntp确定时间的 
+[root@centos7 ~]# systemctl  enable  chronyd 
+[root@centos7 ~]# date
+Fri Jul 21 15:41:44 CST 2017
+[root@centos7 ~]# systemctl stop ntpd
+[root@centos7 ~]# ntpd -gq
+ntpd: time set +84153954.134083s
+[root@centos7 ~]# systemctl start ntpd
+[root@centos7 ~]# date
+Sat Mar 21 15:50:01 CST 2020
+

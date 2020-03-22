@@ -1,0 +1,97 @@
+1、创建一个名为manager的组，一个harry用户，属manager组，该组为该用户的从属组。一个natasha和harry一样。
+一个strlt用户，无可交互的shell（不许登录），不属manager组，三个用户密码都设置为default
+groupadd manager
+useradd harry -G manager
+useradd natasha -G manager
+useradd strlt -s /sbin/nologin
+echo 'default' | passwd --stdin harry
+echo 'default' | passwd --stdin natasha
+echo 'default' | passwd --stdin strlt
+
+
+[root@centos7 prac]# groupadd manager
+[root@centos7 prac]# useradd harry -G manager
+[root@centos7 prac]# useradd natasha -G manager
+[root@centos7 prac]# useradd strlt -s /sbin/nologin
+
+[root@centos7 prac]# id harry
+uid=1002(harry) gid=1004(harry) groups=1004(harry),1003(manager)
+[root@centos7 prac]# id natasha
+uid=1003(natasha) gid=1005(natasha) groups=1005(natasha),1003(manager)
+[root@centos7 prac]# id strlt
+uid=1004(strlt) gid=1006(strlt) groups=1006(strlt)
+
+[root@centos7 test]# echo 'default' | passwd --stdin harry
+Changing password for user harry.
+passwd: all authentication tokens updated successfully.
+[root@centos7 test]# echo 'default' | passwd --stdin natasha
+Changing password for user natasha.
+passwd: all authentication tokens updated successfully.
+[root@centos7 test]# echo 'default' | passwd --stdin strlt
+Changing password for user strlt.
+passwd: all authentication tokens updated successfully.
+
+    
+[root@centos7 prac]# vim /etc/passwd           #可以验证各用户得状态
+harry:x:1002:1004::/home/harry:/bin/bash
+natasha:x:1003:1005::/home/natasha:/bin/bash
+strlt:x:1004:1006::/home/strlt:/sbin/nologin
+
+2、创建用户tom得家目录为/home/tomcat ，且基本组为mail,uid为1111，密码为'123456'
+
+mkdir /home/tomcat
+useradd -g mail -d /home/tomcat -u 1111  tom
+
+
+
+[root@centos7 prac]# useradd -g mail -d /home/tomcat -u 1111  tom
+[root@centos7 prac]# id tom
+uid=1111(tom) gid=12(mail) groups=12(mail)
+[root@centos7 prac]# echo '123456' | passwd --stdin tom
+Changing password for user tom.
+passwd: all authentication tokens updated successfully.
+
+[root@centos7 prac]# vim /etc/passwd           #可以验证各用户得状态
+tom:x:1111:12::/home/tomcat:/bin/bash
+
+
+
+3、创建系统账户admin，全名administrator，家目录为/home/admin。账户有效时间2020年1月24日，基本组为root，附加组为bin,adm,mail
+useradd -c administrator -e 2022-12-24 -g root -G bin,adm,mail admin
+
+
+[root@centos7 prac]# useradd -c administrator -e 2022-12-24 -g root -G bin,adm,mail admin
+[root@centos7 prac]# id admin
+uid=1112(admin) gid=0(root) groups=0(root),1(bin),4(adm),12(mail)
+
+
+[root@centos7 prac]# vim /etc/passwd           #可以验证各用户得状态
+admin:x:1112:0:administrator:/home/admin:/bin/bash
+
+
+
+4、增加usergrp组，GID为6000。用户user1，UID为6000
+groupadd -g 6000 usergrp
+useradd -U 6000 user1
+
+5、
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

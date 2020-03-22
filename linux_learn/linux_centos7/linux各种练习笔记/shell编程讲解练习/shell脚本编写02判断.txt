@@ -1,0 +1,215 @@
+一、shell脚本判断语句
+shell脚本的判断语句可以使用if语句和case语句
+
+1、if语句格式一
+if  条件
+then
+命令序列
+else（可省略）
+命令序列
+fi
+
+2、if语句格式二
+if  条件
+then
+命令序列
+elif   条件
+then
+.
+.
+.
+else（可省略）
+命令序列
+fi
+
+
+
+二、if实操
+[root@centos7 prac]# cat if.sh 
+#!/bin/bash
+# this is test for if
+read -p 'passwd:'  passwd
+if [ "$passwd" == "123123" ]
+then
+echo "passwd is right"
+else
+echo "no this wrong passwd"
+fi
+[root@centos7 prac]# sh if.sh 
+passwd:123123
+passwd is right
+[root@centos7 prac]# sh if.sh 
+passwd:789789
+no this wrong passwd
+
+
+[root@centos7 prac]# cat if.sh 
+#!/bin/bash
+# this is test for if
+if [ "$(id -u)" -eq "0" ]           ######实测，可以用[ "$(id -u)" == "0" ] ，[ "`(id -u)`" -eq "0" ] ，[ "$(id -u)" == "0" ] （等于可用==，因为shell里可以当str处理，><等则不行必须用ge,le等）
+then
+echo "yes you are root"
+else
+echo "no are not root"
+fi
+
+[root@centos7 prac]# sh if.sh 
+yes you are root
+[root@centos7 prac]# su bobo
+[bobo@centos7 prac]$ sh if.sh 
+no are not root
+
+
+三、case语句
+case语句实质是if多重判断的替换，易读易写
+case语句通过检查模式与变量是否匹配，如果匹配执行case命令序列
+*)为case默认操作，当所有模式都未匹配时，执行这个
+模式可以使用通配符
+模式下的命令必须用;;结尾，代表该模式下的命令结束
+
+1、case格式一
+case  $变量名  in
+模式1)
+       命令序列
+       ;;
+模式2)
+       命令序列
+       ;;
+.
+.
+.
+模式N)
+       命令序列
+       ;;
+*)
+esac
+
+2、case格式二
+case  $变量名  in
+模式1 | 模式2)
+       命令序列
+       ;;
+模式3 | 模式4)
+       命令序列
+       ;;
+.
+.
+.
+*)
+esac
+
+
+四、case语句案例
+######如果是周五或周一打印备份成功，否则打印不是周五或周一
+[root@centos7 prac]# date +%a
+Fri
+[root@centos7 prac]# cat case_tar.sh 
+#!/bin/bash
+#this is test for case
+date=$(date +%a)
+Time=$(date +%Y-%m-%d)
+
+case  $date  in
+Fri | Mon)           		####满足其中一个条件，执行下面的命令序列（当然也可以真的备份）
+	echo "backup successful in $Time"
+	;;
+*)			####当case语句中没有条件满足，执行下面命令序列
+	echo "today is not Fri or Mon"        
+esac
+
+[root@centos7 prac]# sh case_tar.sh 
+backup successful in 2020-03-20
+
+####sleep的的自动脚本
+[root@centos7 prac]# chmod u+x  sleep.sh
+[root@centos7 prac]# cat sleep.sh 
+#!/bin/bash
+#this is test for sleep 
+case $1 in
+	start)
+	sleep 1000 &
+	;;
+	stop)
+	pkill sleep
+	;;
+	restart)
+	pkill sleep
+	sleep 1000 &
+	;;
+	*)
+	echo "erro usag:$0(start|stop|restart)"
+esac
+[root@centos7 prac]# sh sleep.sh 
+erro usag:sleep.sh(start|stop|restart)
+[root@centos7 prac]# sh sleep.sh start                ##########此时用sh启动脚本并没在后台运行sleep命令
+[root@centos7 prac]# jobs 
+[root@centos7 prac]# source sleep.sh 
+erro usag:bash(start|stop|restart)
+[root@centos7 prac]# source sleep.sh start          ##########只有在用source 执行脚本是才成功运行sleep命令(记得给文件加执行权限)
+[root@centos7 prac]# jobs 
+[1]+  Running                 sleep 1000 &
+[root@centos7 prac]# source sleep.sh stop
+[1]+  Terminated              sleep 1000
+[root@centos7 prac]# jobs
+[root@centos7 prac]# source sleep.sh restart
+[root@centos7 prac]# jobs 
+[1]+  Running                 sleep 1000 &
+
+
+####根据用户输入的参数，判断返回相应的结果（只支持一位）
+如果输入字符：提示你输入的是字符
+如果输入数字：提示你输入的是数字
+错误提示erro
+[root@centos7 prac]# cat input_jude.sh 
+#!/bin/bash
+#this test for user input judement
+
+case $1 in
+	[a-z] |[A-Z])
+	echo "you input str"
+	;;
+	 [[:digit:]])
+	echo "you input num"
+	;;
+	*)
+	echo "what are you input?"
+esac
+
+[root@centos7 prac]# sh input_jude.sh 1
+you input num
+[root@centos7 prac]# sh input_jude.sh 11     ###只支持一位，多了就不管了
+what are you input?
+[root@centos7 prac]# sh input_jude.sh a
+you input str
+[root@centos7 prac]# sh input_jude.sh asd
+what are you input?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

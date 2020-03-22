@@ -1,0 +1,114 @@
+一、telnet安装
+
+###telnet命令集
+EOF 文件结束符
+
+
+
+
+##搭建telnet服务器
+/etc/securetty 
+
+软件安装
+由于telnet服务由xinetd守护
+telnet-server
+xinetd(extend internet daemon）(超级internet服务器)
+默认情况下禁止root用户登录
+
+
+
+######服务端
+[root@centos7 ~]# yum install telnet -y
+[root@centos7 ~]# yum install telnet-server.x86_64 -y
+[root@centos7 ~]# yum install xinetd.x86_64 -y
+
+[root@centos7 ~]# systemctl restart xinetd.service 
+[root@centos7 ~]# systemctl enable xinetd.service 
+[root@centos7 ~]# systemctl restart telnet.socket 
+[root@centos7 ~]# systemctl enable telnet.socket 
+Created symlink from /etc/systemd/system/sockets.target.wants/telnet.socket to /usr/lib/systemd/system/telnet.socket.
+
+[root@centos7 ~]# firewall-cmd --permanent --add-service=telnet 
+success
+[root@centos7 ~]# firewall-cmd --reload 
+success
+
+####因为默认是禁止root用户登录的
+[root@centos7 ~]# vim /etc/securetty 		############在最后一行加上pts/0，pts/1 ..多加几个(这是自己的终端啥的吧)
+[root@centos7 ~]# systemctl restart xinetd.service 
+[root@centos7 ~]# systemctl restart telnet.socket
+
+
+
+
+####telnet的配置文件 /etc/xinetd.d/telnet
+# default：on
+# description：The telnet server servers telnet sessions; it uses \
+#	unencrypted username/password pairs for authentication.
+service telnet
+{
+	flags		= REUSE		#####为服务器设置特定标识
+	socket_type	= stream		#####套接字类型stream流 tcp
+	wait		= no		#####服务进行是否是单线程   no  多线程
+	user		= root		#####运行进程的用户是谁，这里是root
+	server		= /usr/sbin/in.telnetd	
+	log_on_failure	+= USERID	###错误日志，在原来的日志基础上+一个USERID
+	disable		= yes		
+}
+
+/etc/xinetd.conf
+
+
+
+#####客户端连接
+	[root@centos7 ~]# yum install telnet -y
+	telnet address port(默认23)
+
+[E:\~]$ telnet 192.168.8.87:23(服务端地址)
+Connecting to 192.168.8.87:23...
+Connection established.
+To escape to local shell, press 'Ctrl+Alt+]'.
+
+Kernel 3.10.0-1062.12.1.el7.x86_64 on an x86_64
+centos7 login: root			#####root用户还是无法通过telnet登录（原来在/etc/securetty文件里多加一个pts/1 pts/2 ..就行了）
+Password: 
+Login incorrect
+
+centos7 login: bobo
+Password: 
+Last login: Fri Mar 20 02:11:39 on pts/0
+[bobo@centos7 ~]$ 			######bobo用户登录成功
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

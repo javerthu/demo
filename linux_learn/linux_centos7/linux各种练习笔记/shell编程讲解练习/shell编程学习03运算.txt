@@ -1,0 +1,151 @@
+一、数组的数学运算
+数组实质是变量，可以支持自增自减操作。变量的内存空间是随机的，数组的内存空间是顺序的。
+[root@centos7 ~]# A[0]=10
+[root@centos7 ~]# echo ${A[*]}
+10
+[root@centos7 ~]# let A[0]=${A[0]}-1;echo ${A[*]}
+9
+[root@centos7 ~]# let A[0]=${A[0]}-1;echo ${A[0]}
+8
+[root@centos7 ~]# let A[0]-=1;echo ${A[0]}
+7
+[root@centos7 ~]# let A[0]--;echo ${A[0]}
+6
+[root@centos7 ~]# let ++A[0];echo ${A[0]}
+7
+
+
+
+二、expr（减述加减运算）
+expr $A + $B 
+expr $A - $B 
+expr $A \* $B 
+expr $A / $B  
+expr $A % $B 
+[root@centos7 ~]# A=10
+[root@centos7 ~]# B=3
+[root@centos7 ~]# echo ${A}
+10
+[root@centos7 ~]# echo ${B}
+3
+[root@centos7 ~]# expr $A + $B            #######加法
+13
+[root@centos7 ~]# echo expr $A+$B       ######错误示范
+expr 10+3
+[root@centos7 ~]# expr $A+$B               ######错误示范
+10+3
+[root@centos7 ~]# expr $A - $B             #######减法
+7
+[root@centos7 ~]# expr $A \* $B             #######乘法
+30
+[root@centos7 ~]# expr $A / $B             #######除法（小数省略）
+3
+[root@centos7 ~]# expr $A % $B           ###########取余
+1
+
+二、bc命令高级算数运算（可用于浮点数计算，bc相当于linux中的计算器，功能丰富），人言“强大到让你吐血”
+[root@centos7 ~]# bc
+bc 1.06.95                      #######版本信息
+Copyright 1991-1994, 1997, 1998, 2000, 2004, 2006 Free Software Foundation, Inc.
+This is free software with ABSOLUTELY NO WARRANTY.
+For details type `warranty'. 
+^C
+(interrupt) Exiting bc.
+[root@centos7 ~]# bc -q          #####-q选项可以不打印banner信息
+pi=3.1415
+r=3
+pi*r*r
+28.2735
+
+r^3
+27
+
+2、人性化操作（批处理）
+圆面积计算-------scale精度，只对除法，取余，幂运算有效
+area=`echo  "scale=2;r=3;pi=3.14;pi*r*r"|bc`
+[root@centos7 ~]# area=`echo  "scale=2;r=3;pi=3.14;pi*r*r"|bc`
+[root@centos7 ~]# echo $area
+28.26
+[root@centos7 prac]# vim test.sh 
+[root@centos7 prac]# cat test.sh 
+#!/bin/bash
+#This is test script for parme!
+area=`bc<<EOF
+scale=2
+r=3
+3.14*r*r
+EOF`
+echo $area
+
+[root@centos7 prac]# sh test.sh 
+28.26
+
+3、补0操作
+如0.1+0.1=0.2  #####不会显示0.2，只会显示.2
+[root@centos7 prac]# echo `echo "0.1+0.1"|bc`
+.2
+[root@centos7 prac]# printf  "%.2f\n"  `echo "0.1+0.1"|bc`
+0.20
+
+
+
+
+练习一、如何从1-10相加求和
+[root@centos7 ~]# A=(a b c d e f g h i j)
+[root@centos7 ~]# C=0
+[root@centos7 ~]# B=0
+[root@centos7 ~]# for i in ${A[*]};do $[B++];echo $[C+=B]; done
+bash: 0: command not found...
+1
+bash: 1: command not found...
+3
+bash: 2: command not found...
+6
+bash: 3: command not found...
+10
+bash: 4: command not found...
+15
+bash: 5: command not found...
+21
+bash: 6: command not found...
+28
+bash: 7: command not found...
+36
+bash: 8: command not found...
+45
+bash: 9: command not found...
+55
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

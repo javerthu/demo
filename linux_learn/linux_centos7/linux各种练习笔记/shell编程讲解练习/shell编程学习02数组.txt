@@ -1,0 +1,279 @@
+一、接shell01变量，下面四组主要用于确定变量是否正确设置环境
+${varname:-word}  ########当varname存在且不为空是返回varname，否则返回word  (不会把word赋值给varname)
+${varname:=word}  ########当varname存在且不为空是返回varname，否则返回word   (同时会把word赋值给varname)
+${varname:?word}  ########当varname存在且不为空是返回varname，否则返回varname:word
+${varname:+word}  ########当varname存在且不为空是返回word，否则返回null
+
+[root@centos7 ~]# NAME='WTF'
+[root@centos7 ~]# echo $NAME
+WTF
+[root@centos7 ~]# echo ${NAME}
+WTF
+[root@centos7 ~]# echo ${NAME:-NO NO NO}              ##########这样的格式是变量存在echo变量，变量不存在echo -XXX后的XXX
+WTF
+[root@centos7 ~]# echo ${NAMES:-NO NO NO}            #####注意变量为空字符串也是判断为不存在，打印-后面的内容
+NO NO NO
+
+[root@centos7 ~]# echo ${NAMES:=NO NO NO}
+NO NO NO
+[root@centos7 ~]# echo ${NAME:=NO NO NO}
+WTF
+[root@centos7 ~]# echo $NAMES
+NO NO NO
+
+[root@centos7 ~]# echo ${NAME:?NO NO NO}
+WTF
+[root@centos7 ~]# echo ${NAMES:?NO NO NO}
+bash: NAMES: NO NO NO
+
+[root@centos7 ~]#  echo ${NAMES:+NO NO NO}
+
+[root@centos7 ~]# echo ${NAME:+NO NO NO}
+NO NO NO
+
+
+下面六组主要用于需要对变量的值做修改后的输出场景
+${varname#key}                                 ########从头开始删除关键字（key），执行最短匹配
+${varname##key}                               ########从头开始删除关键字（key），执行最长匹配
+${varname%key}                                ########从尾部开始删除关键字（key），执行最短匹配
+${varname%%key}                             ########从尾部开始删除关键字（key），执行最长匹配
+${varname/old/new}                          ########将old替换为new，替换第一个出现的old
+${varname//old//new}                       ########将old替换为new，替换所有old
+
+
+
+[root@centos7 ~]# USR=$(head -2 /etc/passwd)
+[root@centos7 ~]# echo $USR
+root:x:0:0:root:/root:/bin/bash bin:x:1:1:bin:/bin:/sbin/nologin      ################变量本体
+
+[root@centos7 ~]# echo ${USR#*:}
+x:0:0:root:/root:/bin/bash bin:x:1:1:bin:/bin:/sbin/nologin           ########从头开始执行删除 *：的最小匹配也就是删除root:
+[root@centos7 ~]# echo $USR                                                  ########变量值没变，只是打印出来结果不一样
+root:x:0:0:root:/root:/bin/bash bin:x:1:1:bin:/bin:/sbin/nologin
+[root@centos7 ~]# echo ${USR##*:}
+/sbin/nologin                                                                            ########从头开始执行删除 *：的最长匹配也就是删除r........bin:
+
+[root@centos7 ~]# echo ${USR%:*}                                            ########从尾部开始执行删除 ：*的最短匹配，也就是删除/sbin/nologin（：*表示到：截止）
+root:x:0:0:root:/root:/bin/bash bin:x:1:1:bin:/bin
+[root@centos7 ~]# echo ${USR%%:*}
+root
+
+[root@centos7 ~]# echo ${USR/root/admin}                              #########局部匹配第一个root换成admin
+admin:x:0:0:root:/root:/bin/bash bin:x:1:1:bin:/bin:/sbin/nologin    
+[root@centos7 ~]# echo ${USR//root//admin}                           #########匹配所有的root换成admin
+/admin:x:0:0:/admin://admin:/bin/bash bin:x:1:1:bin:/bin:/sbin/nologin
+
+
+二、数组。类似  [],(),{}，一组具有相同数据类型的集合
+数组类型有：1、数值类型。2、字符串类型。
+bash提供一维数组，数组中所有遍历编录成索引，数组的索引从0开始。
+[root@centos7 ~]# A[1]=11
+[root@centos7 ~]# A[2]=22
+[root@centos7 ~]# A[3]=33
+[root@centos7 ~]# A[7]=66                #########shell数组变量赋值可以不连续
+[root@centos7 ~]# echo ${A[3]}
+33
+[root@centos7 ~]# echo ${A[2]}
+22
+[root@centos7 ~]# echo ${A[0]}
+
+[root@centos7 ~]# echo ${A[-1]}
+66
+[root@centos7 ~]# echo ${A[4]}
+
+[root@centos7 ~]# A[-1]=101             ######取值能用负号下标取，但是赋值不能
+bash: A[-1]: bad array subscript
+[root@centos7 ~]# A[7]=101
+[root@centos7 ~]# echo ${A[-1]}
+101
+[root@centos7 ~]# echo ${A[*]}         ####显示数组中所有的值
+11 22 33 101
+[root@centos7 ~]# echo ${#A[*]}       ######显示数组中值的个数
+4
+[root@centos7 ~]# echo ${#A[7]}       ######显示数组A[7]的长度，101长度为3
+3
+[root@centos7 ~]# echo ${!A[*]}        ######列出数组索引下标
+1 2 3 7
+[root@centos7 ~]# echo ${A[*]}
+11 22 33 101
+######删除
+[root@centos7 ~]# unset A[3]            ######删除数组其中的数据，这里删除的是A[3]数据
+[root@centos7 ~]# echo ${A[*]}
+11 22 101
+[root@centos7 ~]# echo ${!A[*]}       
+1 2 7                                                   #####可以发现下标为3的值没了
+[root@centos7 ~]# unset A                ######删除整个数组
+[root@centos7 ~]# echo ${!A[*]}
+
+[root@centos7 ~]# echo ${A[*]}
+
+#########数组的切片
+[root@centos7 ~]# A=(00 11 22 101)
+[root@centos7 ~]# echo ${A[*]}
+00 11 22 101
+[root@centos7 ~]# echo ${A[*]:0:3}      #######${数组名[*]:开始位置:结束位置}  包含开始位置不包含结束位置
+00 11 22
+[root@centos7 ~]# echo ${A[*]:2:3}      #######为什么下面的又取到A[3]了奇怪
+22 101
+[root@centos7 ~]# echo ${A[*]:1:3}
+11 22 101
+#########数组的遍历
+[root@centos7 ~]# echo ${A[*]}
+00 11 22 101
+[root@centos7 ~]# for i in ${A[*]};do
+> echo $i
+> done
+00
+11
+22
+101
+
+
+
+三、算数运算
+[root@centos7 ~]# B='aa'
+[root@centos7 ~]# B=$B+'bb'
+[root@centos7 ~]# echo $B               ###########字符串拼接的自我尝试
+aa+bb
+
+[root@centos7 ~]# echo $A
+3
+[root@centos7 ~]# echo $[A*(-3)]            ###########乘负数的尝试
+-9
+[root@centos7 ~]# echo $[A**(-3)]            ###########幂的尝试，该方法无法做幂的负运算以及小数运算
+bash: A**(-3): exponent less than 0 (error token is ")")
+
+
+
+[root@centos7 ~]# A=10
+[root@centos7 ~]# let A=A+10
+[root@centos7 ~]# echo $A
+20
+[root@centos7 ~]# echo $((A+=6))
+26
+[root@centos7 ~]# echo $[A-=19]
+7
+root@centos7 ~]# A=$[A*7];echo $A           #######乘
+49
+[root@centos7 ~]# A=$[A/2];echo $A         #######除之后的结果int()相当于（去除小数）
+24
+[root@centos7 ~]# A=$[A%7];echo $A        #######取余
+3
+
+[root@centos7 ~]# echo $A
+3
+[root@centos7 ~]# echo $[A++]      ######先打印在自增（+1）
+3
+[root@centos7 ~]# echo $[A++]
+4
+[root@centos7 ~]# echo $A
+5
+[root@centos7 ~]# echo $[A--]        ###类似
+5
+[root@centos7 ~]# echo $[A--]
+4
+[root@centos7 ~]# echo $A
+3
+[root@centos7 ~]# echo $[A**3]       ###幂运算
+27
+##############$[A++]先返回结果再加一，$[++A]先加一再返回结果
+
+练习一、如何从1-10相加求和
+[root@centos7 ~]# count=0
+[root@centos7 ~]# A=(1 2 3 4 5 6 7 8 9 10)
+[root@centos7 ~]# echo ${A[*]}
+1 2 3 4 5 6 7 8 9 10
+[root@centos7 ~]# for i in ${A[*]};do
+> count=$[count+$i]
+> echo $count
+> done
+1
+3
+6
+10
+15
+21
+28
+36
+45
+55
+[root@centos7 ~]# echo $count
+55
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,250 @@
+一、控制语句应用
+shell支持的控制语句有break,continue,exit,shift
+
+shift	作用是将位置参数左移一位，（如执行一次$1->$2,一次类推）
+
+ex:
+[root@centos7 prac]# cat control.sh 
+#!/bin/bash
+#this test for control
+for i in $@
+do
+echo $i
+shift
+done
+[root@centos7 prac]# sh control.sh 1 4 8 ssqs siji
+1
+4
+8
+ssqs
+siji
+
+
+
+continue	在for,while,until循环中使用，使当前循环终止，继续下一轮循环
+break	在for,while,until循环中使用，终止整个循环
+exit	用来结束脚本运行
+
+ex：
+[root@centos7 prac]# cat control.sh 
+#!/bin/bash
+#this test for control
+for i in {1..20}
+do
+	case $i in
+	5)            		
+	continue		##当i循环到5时，结束这次循环进行下次循环（也就是不输出5，直接进行i=2的循环）
+	;;
+	8)
+	break		##当i循环到8时，结束整个while循环体
+	;;
+	esac
+echo $i
+done
+echo "hah"	
+exit			##执行exit退出整个脚本，后面的输出语句不会执行
+echo "wtf can you see me?"
+
+[root@centos7 prac]# sh control.sh 
+1
+2
+3
+4
+6
+7
+hah
+
+
+二、shell函数的应用
+把重复多次使用的代码包装成函数，将程序进行模块化，函数需要先定义后调用
+
+##函数的语法格式
+格式一、
+name(){
+命令序列
+}
+
+格式二、
+function name{
+命令序列
+}
+
+ex:
+##########菜单栏选择的函数版本
+[root@centos7 prac]# cat func.sh 
+#!/bin/bash
+#  this test for func
+
+HINT(){					#####函数封装
+read -p "Press Enter to continue: "
+}
+
+CPU_INFO(){
+echo
+echo -e "\033[4;31mPrint the CPU info:\033[0m" 			######设置 the CPU info:的颜色格式
+cat /proc/cpuinfo | awk 'BEGIN {FS=":"} /model name/{print "CPU Model:"$2}'		#######awk语句的使用
+cat /proc/cpuinfo | awk 'BEGIN {FS=":"} /cpu MHz/{print "CPU Speed:"$2"MHz"}'
+grep -Eq "svm|vmx" /proc/cpuinfo && echo "Virtualiztion:Support" || echo "Virtualiztion:NO Support"
+grep
+}
+
+LOAD_INFO(){
+echo
+echo -e "\033[4;31mPrint the System load info:\033[0m"
+uptime | awk 'BEGIN{FS=":"}{print $5}' | awk 'BEGIN{FS=":"}{print "Last 1 minutes system load:"$1"\n""Last 5 minutes system load:"$2"\n""Last 15 minutes system load"$3}'
+echo
+}
+
+MEM_INFO(){
+echo
+echo -e "\033[4;31mPrint the MEN info:\033[0m"
+free  |grep buff/cache | awk '{print "Mem free:"$4" Bytes"}'
+free | grep Swap | awk '{print "Swap free:"$4" Bytes"}'
+echo
+}
+
+DISK_INFO(){
+echo
+echo -e "\033[4;31mPrint the disk space info:\033[0m"
+df -hT
+echo
+}
+
+while true
+do
+clear
+echo .................................
+echo "1.show cpu info"
+echo "2.show system load info"
+echo "3.show mem and swap info"
+echo "4.show filesystem mount info"
+echo "5.exit"
+echo .................................
+read -p "your select number:" Select
+case $Select in
+	1)
+	CPU_INFO         		###函数调用
+	HINT			###函数调用
+	;;
+	2)
+	LOAD_INFO
+	HINT
+	;;
+	3)
+	MEM_INFO	
+	HINT
+	;;
+	4)
+	DISK_INFO
+	HINT
+	;;
+	5)
+	break
+	;;
+	*)
+	read -p "please select 1-5,Press Enter to continue:"
+esac
+done
+
+
+[root@centos7 prac]# cat guss_passwd.sh 
+#!/bin/bash
+#this test for passwd guess
+PASSWD="passwd"
+SUM=0
+while true
+do
+	read -p "input your password:" pass
+	SUM=$((SUM+1))
+	if [ $pass == $PASSWD ];
+	then
+	echo "Your passwd is right"
+	break
+	elif [ $SUM -le 2 ];
+	then
+	continue
+	else
+	echo "you passwd error,no more chance"
+	break
+	fi
+done
+
+[root@centos7 prac]# sh guss_passwd.sh 
+input your password:48
+input your password:passwd
+Your passwd is right
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

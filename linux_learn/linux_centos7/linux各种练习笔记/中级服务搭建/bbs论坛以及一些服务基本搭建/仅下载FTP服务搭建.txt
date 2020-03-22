@@ -1,0 +1,27 @@
+1、FTP仅下载服务器搭建
+软件名:vsftpd       服务名:vsftpd         配置文件:/etc/vsftpd/vsftod.conf
+匿名用户共享目录:/var/ftp/pub		用户类型:1、匿名用户   2、本地用户    3、虚拟用户
+服务端：
+1、yum install vsftpd -y
+vim /etc/vsftpd/vsftod.conf   #次案例不做配置文件修改，若想配置上传等功能则需要编辑该文件。
+2、cp 或 touch 文件  /var/ftp/pub/	
+3、systemctl start/enable vsftpd
+4、本地访问:ftp://127.0.0.1
+能看到pub里的文件即成功
+
+
+客户端:
+1、安装lftp
+yum install lftp -y
+2、访问服务端地址
+[root@centos7 test]# lftp 127.0.0.1
+lftp 127.0.0.1:~> cd pub/
+lftp 127.0.0.1:/pub> get a.txt 
+5 bytes transferred
+lftp 127.0.0.1:/pub> exit
+[root@centos7 test]# ls
+a.txt 
+
+完成下载。FTP仅下载服务器搭建完成。
+
+

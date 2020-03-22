@@ -1,0 +1,235 @@
+RAID常用的有0，1，3，5，10，50几种。
+简单介绍常用的几种RAID组
+1、RAID0
+至少两块磁盘构成，不提供数据校验（即无数据保护作用。）读写速度最快，但是只要一块磁盘坏了整个RAID0组就崩了，利用率100%
+写： A ->  A1  A2        读：A1    A2    ->   A
+
+2、RAID1
+至少两块磁盘构成，两个磁盘互为镜像。提供数据备份，利用率 1/n。 n为RAID组磁盘数量
+写： A ->  A  A      读：一块磁盘上的A   ->   A  
+
+3、RAID3
+至少由三块磁盘构成，有一个校验盘（XOR）上面存储着前两个数据盘的异或值（异或运算可逆）。若损坏一块磁盘，可以通过剩余的磁盘+校验盘异或运算
+还原数据，提供了数据保护。但是如果坏了两块磁盘，则RAID3组崩坏。利用率 n-1/n。PS（对校验盘来说是一种写惩罚）
+写： A ->  A1  A2  A1异或A2      读：A1    A2    ->   A
+
+4、RAID5
+和RAID3类似，只是校验盘不单独指定。随机写校验数据，解决RAID3校验盘的写惩罚
+写： A ->  A1  A1异或A2（随机）    A2       读：A1    A2    ->   A
+
+5、RAID6
+有两块校验盘P和Q，P和RAID3 5类似由数据异或（XOR）得到，Q由GF变化得到。可以使RAID6组最多损坏两块磁盘，大于两块整个RAID6组崩坏。
+写： A ->  A1  A1异或A2（P随机）  Q （随机）   A2          读：A1    A2    ->   A
+
+6、RAID10
+先做RAID1，再做RAID0
+
+7、RAID50
+先做RAID5，再做RAID0
+
+
+Linux下通过mdadm命令配置RAID组，首先yum install mdadm
+一、RAID0 的实现（两块一样的磁盘）
+1、将两块磁盘都分区，一个分区容量全给。。！！！！最后记得改分区类型为RAID类型
+Command (m for help): n
+Partition type:
+   p   primary (0 primary, 0 extended, 4 free)
+   e   extended
+Select (default p): p
+Partition number (1-4, default 1): 
+First sector (2048-461373439, default 2048): 
+Using default value 2048
+Last sector, +sectors or +size{K,M,G} (2048-461373439, default 461373439): 
+Using default value 461373439
+Partition 1 of type Linux and of size 220 GiB is set
+
+Command (m for help): t
+Selected partition 1
+Hex code (type L to list all codes): fd
+Changed type of partition 'Linux' to 'Linux raid autodetect'         #########这里
+
+Command (m for help): p
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sdd1            2048   461373439   230685696   fd  Linux raid autodetect
+
+Command (m for help): w
+The partition table has been altered!
+
+第二块一样的操作
+
+2、检查磁盘是否已经RAID组化
+[root@centos7 ~]# mdadm --examine /dev/sdd1
+mdadm: No md superblock detected on /dev/sdd1.  #########出现这行表示没问题，可以进行下一步
+
+
+3、创建RAID0
+[root@centos7 ~]# mdadm -C /dev/md0 -l 0 -n 2 /dev/sdd1 /dev/sde1
+mdadm: Defaulting to version 1.2 metadata
+mdadm: array /dev/md0 started.              #########出现这行表示没问题
+
+
+4、查看RAID组状态
+[root@centos7 ~]# cat /proc/mdstat 
+Personalities : [raid0] 
+md0 : active raid0 sde1[1] sdd1[0]
+      450621440 blocks super 1.2 512k chunks
+      
+unused devices: <none>
+
+#查看级别
+[root@centos7 ~]# cat /proc/mdstat 
+Personalities : [raid0] 
+md0 : active raid0 sde1[1] sdd1[0]
+      450621440 blocks super 1.2 512k chunks
+      
+unused devices: <none>
+[root@centos7 ~]# mdadm -E /dev/sd[de]
+/dev/sdd:
+   MBR Magic : aa55
+Partition[0] :    461371392 sectors at         2048 (type fd)
+/dev/sde:
+   MBR Magic : aa55
+Partition[0] :    440399872 sectors at         2048 (type fd)
+
+
+##查看RAID组详情
+[root@centos7 ~]# mdadm --detail /dev/md0 
+/dev/md0:
+           Version : 1.2
+     Creation Time : Sun Mar 15 06:05:46 2020
+        Raid Level : raid0
+        Array Size : 450621440 (429.75 GiB 461.44 GB)
+      Raid Devices : 2
+     Total Devices : 2
+       Persistence : Superblock is persistent
+
+       Update Time : Sun Mar 15 06:05:46 2020
+             State : clean 
+    Active Devices : 2
+   Working Devices : 2
+    Failed Devices : 0
+     Spare Devices : 0
+
+        Chunk Size : 512K
+
+Consistency Policy : none
+
+              Name : centos7:0  (local to host centos7)
+              UUID : ad6e6f13:9944666d:2b3d065b:b2108213
+            Events : 0
+
+    Number   Major   Minor   RaidDevice State
+       0       8       49        0      active sync   /dev/sdd1
+       1       8       65        1      active sync   /dev/sde1
+
+
+5、给RAID组创建系统文件
+[root@centos7 ~]# mkfs -t ext4 /dev/md0 
+mke2fs 1.42.9 (28-Dec-2013)
+Filesystem label=
+OS type: Linux
+Block size=4096 (log=2)
+Fragment size=4096 (log=2)
+Stride=128 blocks, Stripe width=256 blocks
+28164096 inodes, 112655360 blocks
+5632768 blocks (5.00%) reserved for the super user
+First data block=0
+Maximum filesystem blocks=2260729856
+3438 block groups
+32768 blocks per group, 32768 fragments per group
+8192 inodes per group
+Superblock backups stored on blocks: 
+	32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208, 
+	4096000, 7962624, 11239424, 20480000, 23887872, 71663616, 78675968, 
+	102400000
+
+Allocating group tables: done                            
+Writing inode tables: done                            
+Creating journal (32768 blocks): done
+Writing superblocks and filesystem accounting information: done  
+
+
+6、挂载（两种方式，这里演示的是第一种临时挂载）
+[root@centos7 ~]# mkdir /mnt/raid0 
+[root@centos7 ~]# mount /dev/md0 /mnt/raid0/
+[root@centos7 ~]# mount -a
+[root@centos7 ~]# mount -a
+[root@centos7 ~]# df -hT
+Filesystem     Type      Size  Used Avail Use% Mounted on
+devtmpfs       devtmpfs  895M     0  895M   0% /dev
+tmpfs          tmpfs     910M     0  910M   0% /dev/shm
+tmpfs          tmpfs     910M   11M  900M   2% /run
+tmpfs          tmpfs     910M     0  910M   0% /sys/fs/cgroup
+/dev/sda3      xfs       195G  5.1G  190G   3% /
+/dev/sda1      xfs      1014M  228M  787M  23% /boot
+tmpfs          tmpfs     182M   32K  182M   1% /run/user/0
+/dev/sr0       iso9660   4.4G  4.4G     0 100% /run/media/root/CentOS 7 x86_64
+/dev/md0       ext4      423G   73M  402G   1% /mnt/raid0
+
+
+7、！！！！保存RAID配置
+ /etc/mdadm.conf  文件初次使用是没有的，追加写会创建
+[root@centos7 ~]# mdadm --detail --scan --verbose >> /etc/mdadm.conf
+[root@centos7 ~]# cat /etc/mdadm.conf 
+ARRAY /dev/md0 level=raid0 num-devices=2 metadata=1.2 name=centos7:0 UUID=ad6e6f13:9944666d:2b3d065b:b2108213
+   devices=/dev/sdd1,/dev/sde1
+
+
+8、使用RAID0组
+[root@centos7 ~]# echo 'waht the fuck' > /mnt/raid0/test.cof
+[root@centos7 ~]# cat /mnt/raid0/test.cof 
+waht the fuck
+
+表示成功了。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

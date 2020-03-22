@@ -1,0 +1,130 @@
+1、创建多级目录
+[root@centos7 prac]# ll
+total 0
+
+[root@centos7 prac]# mkdir -p a/b/{c,d}/e
+[root@centos7 prac]# tree
+.
+└── a
+    └── b
+        ├── c
+        │     └── e
+        └── d
+               └── e
+
+2、创建a.txt,b.txt两个文件，并把"A","B"分别写入两个文件内
+touch a.txt b.txt && echo "A" > a.txt && echo "B" > b.txt
+
+[root@centos7 prac]# touch a.txt b.txt && echo "A" > a.txt && echo "B" > b.txt
+[root@centos7 prac]# ls
+a  a.txt  b.txt
+[root@centos7 prac]# cat a.txt b.txt 
+A
+B
+
+
+3、将a.txt b.txt两个文件合并到一个文件c.txt中
+cat a.txt b.txt > c.txt  (会自动创建c.txt文件)
+
+[root@centos7 prac]# cat a.txt b.txt > c.txt
+[root@centos7 prac]# ls
+a  a.txt  b.txt  c.txt
+[root@centos7 prac]# cat c.txt 
+A
+B
+
+
+4、将/var/log/dmesg 后100行写入dmesg.bk中。并验证正确性。
+tail -n 100 /var/log/dmesg > dmesg.bk   &&  wc -l dmesg.bk 
+
+[root@centos7 prac]# tail -n 100 /var/log/dmesg > dmesg.bk
+[root@centos7 prac]# ls
+a  a.txt  b.txt  c.txt  dmesg.bk
+[root@centos7 prac]# wc -l dmesg.bk 
+100 dmesg.bk
+
+
+5、将当前目录下所有文件名，写入dir.txt文件中
+ls -a > dir.txt
+
+[root@centos7 prac]# ls -a > dir.txt
+[root@centos7 prac]# ls
+a  a.txt  b.txt  c.txt  dir.txt  dmesg.bk
+[root@centos7 prac]# cat dir.txt 
+.
+..
+a
+a.txt
+b.txt
+c.txt
+dir.txt
+dmesg.bk
+
+
+6、将/home目录压缩到当前路径下的student.tar.gz文件
+tar -czvf student.tar.gz /home
+
+[root@centos7 prac]# ls
+a  a.txt  b.txt  c.txt  dir.txt  dmesg.bk  student.tar.gz
+
+
+7、找出bobo用户拥有的所以文件并且拷贝到当期目录下
+[root@centos7 prac]# find / -user bobo -type f -exec cp {} ./  \;
+
+[root@centos7 prac]# ls
+a  a.txt  bobo  b.txt  c.txt  dir.txt  dmesg.bk  lastnotification  student.tar.gz
+
+
+
+8、在文件/root/initial-setup-ks.cfg 中找到所有包含字符串boot的行，将找出的行按照原文的先后顺序拷贝到lines文件中。不要包含空行
+grep 'boot' /root/initial-setup-ks.cfg > lines
+
+[root@centos7 prac]# grep 'boot' /root/initial-setup-ks.cfg > lines
+[root@centos7 prac]# ls
+a  a.txt  bobo  b.txt  c.txt  dir.txt  dmesg.bk  lastnotification  lines  student.tar.gz
+[root@centos7 prac]# cat lines 
+xconfig  --startxonboot
+# Run the Setup Agent on first boot
+firstboot --enable
+network  --bootproto=dhcp --device=ens32 --onboot=off --ipv6=auto --no-activate
+network  --bootproto=dhcp --hostname=centos7
+# System bootloader configuration
+bootloader --append=" crashkernel=auto" --location=mbr --boot-drive=sda
+part /boot --fstype="xfs" --ondisk=sda --size=1024
+
+
+9、查看/root/initial-setup-ks.cfg文件末尾2K内容
+tail -c 2K /root/initial-setup-ks.cfg
+
+
+10、批量创建(teach,office,finance,admin,market)
+mkdir /share/{teach,office,finance,admin,market}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

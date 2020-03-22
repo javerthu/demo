@@ -1,0 +1,136 @@
+一、shell中的引号
+1、反斜线
+反斜线跟在某个字符前面，示意转义，显示该字符原有含义
+ex:
+[root@centos7 ~]# echo *
+anaconda-ks.cfg Desktop Documents Downloads initial-setup-ks.cfg Music Pictures Public py3 Templates Videos
+[root@centos7 ~]# echo \*
+*
+
+\   还代表回车换行
+ex:
+[root@centos7 ~]# find / \    
+> -type f \
+> -name "*.txt" \
+> -size +1M
+find: ‘/proc/5826’: No such file or directory
+/root/py3/Python-3.7.3/Misc/svnmap.txt
+^C
+
+
+2、单引号
+单引号可以将它中间的所有任意字符还原为字面意思，屏蔽shell原字符功能，需要成对出现
+ex：
+[root@centos7 ~]# echo $HOME
+/root
+[root@centos7 ~]# echo '$HOME'
+$HOME
+[root@centos7 ~]# echo '$HOME\'         #####可以看见转义字符反斜杆也被屏蔽了，这是单引号屏蔽所以字符原含义
+$HOME\
+
+
+3、双引号
+类似但引号，但是不会屏蔽：`（反引号），\（反斜线），$（多了符），这三个原字符含义
+ex：
+[root@centos7 ~]# echo "$HOME"
+/root
+[root@centos7 ~]# echo "\$HOME"           #####若想屏蔽这三个原字符含义，在前面加反斜杆
+$HOME
+
+
+4、反引号
+反引号主要进行命令替换。
+``与$()类似
+ex：
+[root@centos7 ~]# date +%D
+03/19/20
+[root@centos7 ~]# echo "today is `date +%D`"          #######执行到反引号时，把里面语句当命令使用
+today is 03/19/20
+也可这样
+[root@centos7 ~]# echo "today is $(date +%D)"          #######一样的效果
+today is 03/19/20
+
+
+
+
+二、正则表达式（grep/egrep）
+表达式手册以及测试：https://tool.oschina.net/regex/
+菜鸟教程：https://www.runoob.com/regexp/regexp-syntax.html
+30分钟入门教程：https://www.jb51.net/tools/zhengze.html
+常用正则表达式及含义
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+3、seq，类似于python中的range
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

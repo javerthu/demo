@@ -1,0 +1,178 @@
+一、初识shell脚本
+（#！）称为"sha-bang"符号，是shell脚本的起始符号，是指定一个文件类型的特殊标记，它告诉linux系统这个文件执行需要指定一个解释器。
+（#！）符号后是一个路径，这个路径指明解释器在系统中的位置
+
+[root@centos7 prac]# cat test.sh 
+#!/bin/bash			######（#！）符号开头，指定/bin/bash 作为解释器		
+#This is test script for parme!
+day=5
+echo "today is $day"
+day=10
+echo "no today is $day"
+[root@centos7 prac]# vim test.sh 
+[root@centos7 prac]# sh test.sh 
+today is 5
+no today is 10
+
+二、shell脚本的启动方式
+1、赋予权限，直接运行脚本
+chmod u+x  *.sh（脚本文件）
+######此方法表示在用户当前的shell下开启一个新的子进程，并在子进程中运行脚本程序
+
+2、没有权限，通过bash或sh运行
+bash  *.sh（脚本文件）
+sh   *.sh（脚本文件）
+######此方法表示通过bash命令加载执行，此时系统不会关心（#！）后的解释器，而是直接使用bash作为解释器运行脚本程序
+
+3、没有权限，通过source或者  .   运行脚本
+source  *.sh（脚本文件）
+.   *.sh（脚本文件）
+######此方法表示在用户当前的shell环境下运行脚本程序
+
+
+三、
+[root@centos7 prac]# ls
+test.sh
+[root@centos7 prac]# cat test.sh 
+#!/bin/bash
+#This is test script for parme!
+date=`date +%Y%m%d`                    ####用反引号执行date语句并且赋值给date变量
+echo today is $date
+pwd=`pwd`
+echo $pwd
+mkdir ${date}.log		        ####在用户运行该脚本文件的目录下创建.log文件夹
+
+[root@centos7 prac]# sh test.sh        ####执行脚本
+today is 20200319
+/home/test/prac
+[root@centos7 prac]# ls
+20200319.log  test.sh		        #####.log文件夹创建成功
+[root@centos7 prac]# 
+
+
+[root@centos7 prac]# cat test.sh 
+#!/bin/bash
+#This is test script for parme!
+A=4
+B=8
+D=10
+expr $A + $B
+echo add result is `expr $A + $B`           #####一般整数运算
+
+C=$[($A+$B)*$D]                                  #####一般整数运算
+echo $C
+
+let C+=1                                               #####一般整数运算
+echo $C
+
+area=`echo  "scale=2;r=3;pi=3.14;pi*r*r"|bc`         #######bc命令浮点数运算,为啥bc语句没echo不行（答案是可以，用EOF标志看下面实例）
+echo $area
+[root@centos7 prac]# sh test.sh 
+12
+add result is 12
+120
+121
+28.26
+
+
+四、bc操作EOF，EOF文本字符串表明内置重定向数据的开始和结尾
+[root@centos7 prac]# cat bctest.sh 
+#!/bin/bash
+#this is test for bc 
+var1=7
+var2=10
+var3=12
+end_var=`bc << EOF                      ########不用echo的EOF写法
+scale=4
+a=($var3/$var1)
+b=($var2-$var1)
+a+b
+EOF
+`
+echo final $end_var
+
+[root@centos7 prac]# sh bctest.sh 
+final 4.7142
+
+四、退出状态  $?
+[root@centos7 prac]# cat exit.sh 
+#!/bin/bash
+#this is test for exit status
+var1=10
+var2=30
+var=$[$var1*$var2]
+echo $var
+exit $var
+[root@centos7 prac]# sh exit.sh 
+300
+[root@centos7 prac]# echo $?
+44
+
+
+##退出状态码最高255
+0-255
+运算结果为特定的数被256除后的余数，上面的例子中特定的数为300，除256得1余44
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

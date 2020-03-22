@@ -1,0 +1,246 @@
+ACL权限(Access Control  List )  针对当个用户或者组的一种权限
+一般的文件权限分为  属主  属组   其他  。而这其中是明显无法精确到，个人等细节权限的，此时ACL权限就出现了。
+ex:
+[root@centos7 prac]# ll
+-rw-r--r--. 1 root root 0 Mar 13 03:47 a.txt           这是默认root用户创建文件的权限644 。注意后面的 . 这标识文件没有ACL权限。
+
+ACL权限基本用法：
+1、查ACL权限：	getfacl  文件名或目录名
+[root@centos7 prac]# getfacl a.txt 
+# file: a.txt
+# owner: root
+# group: root
+user::rw-
+group::r--
+other::r--
+
+2、设置ACL权限：	setfacl -m u:用户名:要给的权限    文件名或目录名
+		setfacl -m g:组名:要给的权限       文件名或目录名
+##设置组权限
+[root@centos7 prac]# setfacl -m g:bobo:rwx a.txt 
+[root@centos7 prac]# getfacl a.txt 
+# file: a.txt
+# owner: root
+# group: root
+user::rw-
+group::r--
+group:bobo:rwx                ######发现此时已经给bobo组开放了rwx权限
+mask::rwx
+other::r--
+[root@centos7 prac]# ll
+-rw-rwxr--+ 1 root root 0 Mar 13 03:47 a.txt      注意后面的 . 这标识文件没有ACL权限，此时也变成了+号。
+
+##设置用户权限
+[root@centos7 prac]# setfacl -m u:bobo:4 a.txt 
+[root@centos7 prac]# getfacl a.txt 
+# file: a.txt
+# owner: root
+# group: root
+user::rw-
+user:bobo:r--		######发现此时已经给bobo用户开放了r--也就是4权限
+group::r--
+group:bobo:rwx
+mask::rwx
+other::r--
+
+#############################ACL中mask的含义
+acl权限一般与最大有效权限mask结合使用，ACL权限与mask权限相与的值相与后的权限，为设定的真实权限。
+
+如果设定ACL权限为 r-- ,mask的权限为r-x，那么真实权限为r--。
+
+如果设定ACL权限为 rwx ，mask权限为r-x，那么真实权限为r-x。
+
+意思就是ACL与mask两者同时具有某一权限时，真实权限才具备该权限，若有一方不具备该权限，则真实权限不具备此权限。
+
+mask权限默认为rwx，相当于没有意义，因为相当于我们设定的acl权限为acl权限本身。我们可以通过调整mask权限来完成指定权限的更改
+
+
+3、删除ACL权限：	setfacl -x u:用户名    文件名或目录名
+		setfacl -x g:组名       文件名或目录名
+
+ex:
+[root@centos7 prac]# setfacl -x u:bobo a.txt 
+[root@centos7 prac]# setfacl -x g:bobo a.txt 
+[root@centos7 prac]# getfacl a.txt 
+# file: a.txt
+# owner: root
+# group: root
+user::rw-
+group::r--
+mask::r--
+other::r--
+
+##将之前设置的ACL权限删除，但是文件还是+为啥。。
+实景操练
+一、现将文件写入aaa，权限改为640。
+[root@centos7 prac]# cat a.txt 
+aaa
+-rw-r-----+ 1 root root 4 Mar 13 04:07 a.txt
+
+二、用bobo用户访问这个文件
+[bobo@centos7 prac]$ id bobo
+uid=1001(bobo) gid=1002(bobo) groups=1002(bobo)
+[bobo@centos7 prac]$ cat a.txt 
+cat: a.txt: Permission denied
+ #发现bobo用户是打不开的，因为其他人权限为0嘛。
+
+三、添加bobo用户到ACL权限中
+[root@centos7 prac]#  setfacl -m u:bobo:4 a.txt 
+[root@centos7 prac]# su bobo
+[bobo@centos7 prac]$ cat a.txt 
+aaa
+-rw-r-----+ 1 root root 4 Mar 13 04:07 a.txt
+#可以看见设置ACL权限后即使其他人权限为0，bobo用户任然拥有r权限
+
+
+
+
+
+SET位权限
+1、SUID权限  标识 4XXX    4为SUID权限，XXX为文件权限
+[root@centos7 home]# su bobo
+[bobo@centos7 home]$ ping 127.0.0.1
+PING 127.0.0.1 (127.0.0.1) 56(84) bytes of data.
+64 bytes from 127.0.0.1: icmp_seq=1 ttl=64 time=0.112 ms
+64 bytes from 127.0.0.1: icmp_seq=2 ttl=64 time=0.090 ms
+64 bytes from 127.0.0.1: icmp_seq=3 ttl=64 time=0.090 ms
+^C
+此时bobo是能使用ping命令得
+切换到root用户执行下面命令再切到bobo
+cp /bin/ping /home/bobo
+
+[bobo@centos7 ~]$ ./ping 127.0.0.1
+ping: socket: Operation not permitted
+发现不能使用改ping命令（因为没s位权限)
+
+加s位权限：chmod u+s /home/bobo/ping
+[root@centos7 bobo]# chmod u+s /home/bobo/ping
+或者！！
+[root@centos7 bobo]# chmod 4755 /home/bobo/ping
+
+此时再切回bobo看能否使用ping
+[bobo@centos7 ~]$  ./ping 127.0.0.1
+PING 127.0.0.1 (127.0.0.1) 56(84) bytes of data.
+64 bytes from 127.0.0.1: icmp_seq=1 ttl=64 time=0.058 ms
+64 bytes from 127.0.0.1: icmp_seq=2 ttl=64 time=0.116 ms
+64 bytes from 127.0.0.1: icmp_seq=3 ttl=64 time=0.057 ms
+^C
+此时成功，这就是SUID权限（运行时以改文件得属主运行，在本案列中也就是root）
+
+
+仔细观察
+没加suid位权限时：-rwxr-xr-x. 1 root root 66176 Mar  9 02:21 ping
+加suid位权限后：   -rwsr-xr-x. 1 root root 66176 Mar  9 02:21 ping
+
+
+
+2、SGID权限   标识 2XXX    2为SGID权限，XXX为文件权限
+SGID权限一般设置在目录上，作用为设置了SGID权限后，在该目录下创建得文件或目录得属组都为该目录得属组(继承属组)
+
+例子:
+以bobo用户创建一个test目录
+mkdir test
+[bobo@centos7 ~]$ ll
+total 68
+-rwsr-xr-x. 1 root root 66176 Mar  9 02:21 ping
+drwxrwxr-x. 2 bobo bobo     6 Mar  9 02:39 test
+#test目录属组是bobo
+
+cd test   
+[root@centos7 test]# touch a.txt
+[root@centos7 test]# ll
+total 0
+-rw-r--r--. 1 root root 0 Mar  9 02:40 a.txt
+#没加SGID权限时，以root用户创建得a.txt文件属组是root
+
+
+加SGID权限：[root@centos7 bobo]# chmod g+s /home/bobo/test
+或者！！
+加SGID权限：[root@centos7 bobo]# chmod 2775 /home/bobo/ping
+
+
+仔细观察
+没加sgid位权限时：drwxrwxr-x. 2 bobo bobo    19 Mar  9 02:40 test
+加suid位权限后：   drwxrwsr-x. 2 bobo bobo    19 Mar  9 02:40 test
+
+
+此时再以root用户创建一个b.txt文件
+[root@centos7 test]# touch b.txt
+[root@centos7 test]# ll
+total 0
+-rw-r--r--. 1 root root 0 Mar  9 02:40 a.txt
+-rw-r--r--. 1 root bobo 0 Mar  9 02:45 b.txt
+发现再test目录下创建b.txt文件即使是以root身份创建，其属组还是继承test目录为bobo
+
+
+
+
+3、粘滞位权限（sticky)      标识 1XXX   1为sticky权限，XXX为文件权限
+sticky权限一般设置在公共目录(权限为777)上。因为777为全权限，出现普通用户竟然可以删除root用户的文件(纳尼？)sticky权限就是解决这个问题的。
+
+例子
+创建一个777的公共目录
+[root@centos7 bobo]# mkdir test1
+[root@centos7 bobo]# chomd 777 test1
+[root@centos7 bobo]# ll
+total 68
+-rwsr-xr-x. 1 root root 66176 Mar  9 02:21 ping
+drwxrwsr-x. 2 bobo bobo    32 Mar  9 02:45 test
+drwxrwxrwx. 2 root root     6 Mar  9 02:56 test1
+
+再公共目录test1中分别以root，bobo用户创建文件a.txt，b.txt。
+[bobo@centos7 test1]$ ll
+total 0
+-rw-r--r--. 1 root root 0 Mar  9 02:58 a.txt
+-rw-rw-r--. 1 bobo bobo 0 Mar  9 02:58 b.txt
+
+
+没加sticky权限前以bobo身份去删a.txt文件。
+[bobo@centos7 test1]$ rm -rf a.txt 
+[bobo@centos7 test1]$ ll
+total 0
+-rw-rw-r--. 1 bobo bobo 0 Mar  9 02:58 b.txt
+#我的发，竟然删了，这还了得？
+
+加sticky权限：[root@centos7 bobo]# chmod o+t test1
+或者！！
+加sticky权限：[root@centos7 bobo]# chmod 1777 test1
+
+
+没加sticky权限时：drwxrwxrwx. 2 root root    19 Mar  9 03:00 test1
+加sticky权限后：   drwxrwxrwt. 2 root root    19 Mar  9 03:00 test1
+
+
+再来以bobo身份删除一次。
+[bobo@centos7 test1]$ rm -rf a.txt 
+rm: cannot remove ‘a.txt’: Operation not permitted
+[bobo@centos7 test1]$ ll
+total 0
+-rw-r--r--. 1 root root 0 Mar  9 03:03 a.txt
+-rw-rw-r--. 1 bobo bobo 0 Mar  9 02:58 b.txt
+#小伙子不行了吧。加了sticky权限后，用户只能操作自己的文件，而root用户当然还是不受限制的。这就是sticky权限
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

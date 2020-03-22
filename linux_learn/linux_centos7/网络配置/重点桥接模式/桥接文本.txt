@@ -1,0 +1,146 @@
+1、打开本机的cmd 输入ipconfig/all
+	无线局域网适配器 WLAN:
+
+   	连接特定的 DNS 后缀 . . . . . . . :
+   	描述. . . . . . . . . . . . . . . : Intel(R) Dual Band Wireless-AC 8260
+   	物理地址. . . . . . . . . . . . . : B8-8A-60-9F-81-25
+   	DHCP 已启用 . . . . . . . . . . . : 是
+   	自动配置已启用. . . . . . . . . . : 是
+   	本地链接 IPv6 地址. . . . . . . . : fe80::20d0:dce6:2679:7532%3(首选)
+   	IPv4 地址 . . . . . . . . . . . . : 192.168.8.86(首选)
+   	子网掩码  . . . . . . . . . . . . : 255.255.255.0
+   	获得租约的时间  . . . . . . . . . : 2020年3月6日 13:04:50
+   	租约过期的时间  . . . . . . . . . : 2020年3月8日 12:57:10
+   	默认网关. . . . . . . . . . . . . : 192.168.8.1
+   	DHCP 服务器 . . . . . . . . . . . : 192.168.8.1
+   	DHCPv6 IAID . . . . . . . . . . . : 45648480
+   	DHCPv6 客户端 DUID  . . . . . . . : 00-01-00-01-1F-98-E1-4A-70-4D-7B-3E-6F-40
+   	DNS 服务器  . . . . . . . . . . . : 192.168.8.1
+   	TCPIP 上的 NetBIOS  . . . . . . . : 已启用
+
+2、虚拟机选择桥接模式
+
+3、开启虚拟机输入 ifconfig 查看网卡配置
+      ens32: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        	ether 00:0c:29:76:69:b7  txqueuelen 1000  (Ethernet)
+        	RX packets 0  bytes 0 (0.0 B)
+        	RX errors 0  dropped 0  overruns 0  frame 0
+        	TX packets 0  bytes 0 (0.0 B)
+        	TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+      lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+       	 inet 127.0.0.1  netmask 255.0.0.0
+        	inet6 ::1  prefixlen 128  scopeid 0x10<host>
+        	loop  txqueuelen 1000  (Local Loopback)
+        	RX packets 108  bytes 8636 (8.4 KiB)
+        	RX errors 0  dropped 0  overruns 0  frame 0
+        	TX packets 108  bytes 8636 (8.4 KiB)
+        	TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+      virbr0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        	inet 192.168.122.1  netmask 255.255.255.0  broadcast 192.168.122.255
+        	ether 52:54:00:95:3d:c7  txqueuelen 1000  (Ethernet)
+        	RX packets 0  bytes 0 (0.0 B)
+        	RX errors 0  dropped 0  overruns 0  frame 0
+        	TX packets 0  bytes 0 (0.0 B)
+        	TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+此时发现ens32网卡并无配置ip地址，下一步配置
+4、vim /etc/sysconfig/network-scripts/ifcfg-ens32 
+初始样板:
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=dhcp
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=ens32
+UUID=45733d98-4f19-410e-b1e0-983dee88b3a5
+DEVICE=ens32
+ONBOOT=no
+
+修改后:
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=static
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=ens32
+UUID=45733d98-4f19-410e-b1e0-983dee88b3a5
+DEVICE=ens32
+ONBOOT=yes
+IPADDR=192.168.8.87
+NETMASK=255.255.255.0
+GATEWAY=192.168.8.1
+DNS1=101.198.199.200
+DNS2=192.68.8.1
+ZONE=public
+
+5、重启网卡服务  systemctl restart network.service
+
+6、查看网卡配置是否成功 ifconfig  （对比发现ens32网卡配置成功）
+ens32: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 192.168.8.87  netmask 255.255.255.0  broadcast 192.168.8.255
+        inet6 fe80::7bcf:ec3:3426:52b0  prefixlen 64  scopeid 0x20<link>
+        ether 00:0c:29:76:69:b7  txqueuelen 1000  (Ethernet)
+        RX packets 14  bytes 5427 (5.2 KiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 47  bytes 6751 (6.5 KiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        inet6 ::1  prefixlen 128  scopeid 0x10<host>
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 148  bytes 12052 (11.7 KiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 148  bytes 12052 (11.7 KiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+virbr0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        inet 192.168.122.1  netmask 255.255.255.0  broadcast 192.168.122.255
+        ether 52:54:00:95:3d:c7  txqueuelen 1000  (Ethernet)
+        RX packets 0  bytes 0 (0.0 B)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 0  bytes 0 (0.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+7、ping下www.baidu.com看是否成功
+[root@centos7 ~]# ping www.baidu.com
+PING www.a.shifen.com (183.232.231.172) 56(84) bytes of data.
+64 bytes from 183.232.231.172 (183.232.231.172): icmp_seq=1 ttl=52 time=28.7 ms
+64 bytes from 183.232.231.172 (183.232.231.172): icmp_seq=2 ttl=52 time=28.4 ms
+64 bytes from 183.232.231.172 (183.232.231.172): icmp_seq=3 ttl=52 time=33.0 ms
+64 bytes from 183.232.231.172 (183.232.231.172): icmp_seq=4 ttl=52 time=30.8 ms
+64 bytes from 183.232.231.172 (183.232.231.172): icmp_seq=5 ttl=52 time=68.3 ms
+64 bytes from 183.232.231.172 (183.232.231.172): icmp_seq=6 ttl=52 time=33.0 ms
+^C
+--- www.a.shifen.com ping statistics ---
+6 packets transmitted, 6 received, 0% packet loss, time 5009ms
+rtt min/avg/max/mdev = 28.419/37.089/68.396/14.119 ms
+[root@centos7 ~]# 
+
+通了！桥接配置成功。
+ps(若还有问题，则检查下win和虚拟机的防火墙设置，或者杀毒软件啥的。另外一个东西了)
+
+
+
+
+
+
+
+
+
+
+

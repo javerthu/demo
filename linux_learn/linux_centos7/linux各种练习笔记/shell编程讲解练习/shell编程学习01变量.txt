@@ -1,0 +1,237 @@
+一、系统所有可用的shell
+[root@centos7 ~]# cat /etc/shells 
+/bin/sh
+/bin/bash                    ########默认是这个
+/usr/bin/sh
+/usr/bin/bash
+/bin/tcsh
+/bin/csh
+
+[root@centos7 ~]# echo $SHELL          #######查看正在使用的SHELL
+/bin/bash                                             
+
+二、控制字符（；，&&，||，&）
+1、&     ：后台运行标志
+[root@centos7 ~]# sleep  1000 &
+[1] 3152
+[root@centos7 ~]# jobs
+[1]+  Running                 sleep 1000 &
+
+2、；     ：将前后两条命令联系起来顺序执行（前面的命令执行成功或失败不影响）
+[root@centos7 ~]# id bobobo  ;  echo 'haha'
+id: bobobo: no such user                                     ######及时错误还是执行下条语句
+haha
+
+
+3、&&    ：也是连接命令，顺序执行（前面命令错误，则后面命令不执行）
+[root@centos7 ~]# id bobobo  &&  echo 'haha'
+id: bobobo: no such user
+
+
+
+4、||        ：也是连接命令，前面命令错误，后面命令执行（正确则不执行）
+[root@centos7 ~]# id bobo  ||  echo 'no such user'                     
+uid=1001(bobo) gid=1002(bobo) groups=1002(bobo)               ########正确不执行后面语句
+
+[root@centos7 ~]# id bobobo  ||  echo 'no such user'
+id: bobobo: no such user
+no such user                                                                        ########不正确执行后面语句
+
+#####补充
+[root@centos7 ~]# id bobo && echo 'hello bobo'  ||  echo 'no such user'
+uid=1001(bobo) gid=1002(bobo) groups=1002(bobo)
+hello bobo
+[root@centos7 ~]# id bobo0 && echo 'hello bobo'  ||  echo 'no such user'
+id: bobo0: no such user
+no such user
+
+
+5、｛｝以及..的使用
+
+[root@centos7 prac]# ls
+[root@centos7 prac]# mkdir dir{1,2,3,4,5,6,7,8,9}
+[root@centos7 prac]# ls
+dir1  dir2  dir3  dir4  dir5  dir6  dir7  dir8  dir9
+
+[root@centos7 prac]# rm -rf dir{1..9}
+[root@centos7 prac]# ls
+[root@centos7 prac]# 
+
+[root@centos7 prac]# echo {1..9}
+1 2 3 4 5 6 7 8 9
+[root@centos7 prac]# echo  {1..9..2}
+1 3 5 7 9
+
+
+
+三、变量。变量命名不能是关键字，首字符不能是数字
+[root@centos7 prac]# name=                  ######定义变量name。每赋值则变量为空字符串
+[root@centos7 prac]# echo $name                     
+                                                               #########空字符串
+[root@centos7 prac]# 
+
+[root@centos7 prac]# name='wtf'            #####修改变量的值
+[root@centos7 prac]# echo $name
+wtf
+
+[root@centos7 prac]# name = 'wtf'           ########注意修改或者赋值时别有空格，shell编程有空格会报错
+bash: name: command not found...
+
+[root@centos7 prac]# typeset -i name       #####将变量修改为整数形式
+[root@centos7 prac]# echo $name
+wtf
+[root@centos7 prac]# name='wtfa'           ########此时在再修改为字符串则返回为0
+[root@centos7 prac]# echo $name
+0                                                               #######返回为0
+[root@centos7 prac]# name=789
+[root@centos7 prac]# echo $name
+789                                                              ####赋整数值，则成功
+
+
+[root@centos7 prac]# read name                 #######从环境中读标准输入（相当于name = input()）
+78
+[root@centos7 prac]# echo $name
+78
+[root@centos7 prac]# read -p 'int:'  name         #########相当于  name = input('int:')              
+int:999
+[root@centos7 prac]# echo $name
+999
+
+7、查看删除变量
+set可以查看系统所有变量
+[root@centos7 prac]# set |grep name               ########查看变量
+name=999
+
+删除变量        unset
+[root@centos7 prac]# unset name
+[root@centos7 prac]# set |grep name
+_=name                                                           ##########变量已经被删除
+
+8、变量作用范围
+[root@centos7 prac]# name=789                 ##默认在当前shell有效，子进程不会继承这样的变量
+[root@centos7 prac]# echo $name
+789
+[root@centos7 prac]# bash                          #########切换bash
+[root@centos7 prac]# echo $name               ###########发现没有name这个变量了
+
+[root@centos7 prac]# exit                            #######退出到之前的bash环境
+exit
+[root@centos7 prac]# echo $name 
+789                                                               #######之前环境有该变量
+
+[root@centos7 prac]#  export  name                                #######想要全局用，需要添加到环境变量中
+[root@centos7 prac]# echo $name
+789
+[root@centos7 prac]# bash                                               #########切换bash
+[root@centos7 prac]# echo $name                     #######有该变量
+789
+[root@centos7 prac]# exit                                 #######退出到之前的bash环境
+exit
+[root@centos7 prac]# echo $name                    #######有该变量
+789
+
+
+9、环境变量
+例如SHELL就是系统预先设置的环境变量，开发环境可以直接调用这些环境变量（bash手册）
+$SHELL、$HOSTNAME、$BASHPID、$UID、$HOMEL、$PWD、$PS1、$PS2、$RANDOM(0-32767的随机整数)、$PATH等等
+
+
+！！！！！###PATH路径说明
+[root@centos7 prac]# $PATH
+bash: /usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:/root/bin: No such file or directory
+####以上是我们命令去哪些路径下找如 /usr/local/bin、/usr/local/sbin、/usr/bin、/usr/sbin、/bin、/sbin、/root/bin
+以及没找到相关路径报 No such file or directory
+
+[root@centos7 python3]# ln -s /usr/local/python3/bin/python3 /usr/bin/python3
+像之前我们给python3添加环境变量，是用软连接的方式，其实就是把python3的路径放到了PATH变量的/usr/bin  目录下，才能找到
+
+也可以自己添加PATH路径
+PATH=$PATH:/root                 ########追加路径
+注意！！！！绝对不要这样  PATH=/root             ########这样是覆盖，那之前的路径全没了，只有/root 路径了
+
+或者[root@centos7 prac]# vim /etc/profile            #########去修改配置文件
+
+
+10、位置变量（主要体现在脚本中）
+[root@centos7 prac]# touch test.sh
+[root@centos7 prac]# ls
+test.sh
+[root@centos7 prac]# vim test.sh 
+############  写入下面内容
+#!/bin/bash
+#This is test script for parme!
+echo "This is :$0"                        ########   $0     文件名
+echo "This is :$1"                        ########    $1    传递的第一个参数
+echo "This is :$2"                         ########    $2   传递的第二个参数        （以此类推$1-$9）
+echo "This is all:$#"                      ########   $#    传递参数的个数
+echo "This is all parm:$*"             ########   $*和$@    传递参数所有内容
+echo "This is all parm:$@"
+echo "This is PID:$$"                    ########   $$    进程运行的PID号
+echo "This is parm over:$?"          ########   $?    程序退出代码（0成功，非0失败）
+#########
+
+[root@centos7 prac]# sh test.sh a_1 b_1 c_1 d_1
+This is :test.sh               文件名
+This is :a_1                    传递的第一个参数
+This is :b_1                    传递的第二个参数
+This is all:4                    传递参数的个数
+This is all parm:a_1 b_1 c_1 d_1          传递参数所有内容
+This is all parm:a_1 b_1 c_1 d_1          传递参数所有内容
+This is PID:5165                                 进程运行的PID号
+This is parm over:0                            程序退出代码成功
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,382 @@
+# Samba 文件服务器
+	- samba是一种在linux环境中运行的免费软件
+	- 创建基于Windows共享
+	- 通过插件也可以让linux用户共享
+	- server Message Block协议
+	- 可以为局域网中的不同计算机提供文件及打印服务等资源的共享
+
+
+## SMB
+	- 信息服务快
+	- 在局域网中共享文件 和打印机的一种通信协议
+	- C/S架构
+	- NetBios over Tcp/IP
+
+
+## Samba简介
+	- GPL协议			###自由开源
+	- SMB/CIFS  协议
+	- samba  samba-client  samba-common	####对应包
+
+	- 守护进程
+		- smbd
+			- 提供文件共享或打印机共享
+			- 提供用户权限的认证功能以及锁功能
+				- vim file     vim file		####锁功能类似vim打开文件没关闭      用另一个终端用vim打开相同文件，该文件会显示只读
+			- TCP 139 445
+			- netstat -nutlp
+		- nmbd
+			- 提供NetBios名称解析服务
+			- common Internet File System（CIFS）
+			- udp 137
+
+	- 防火墙/selinux默认策略会影响samba访问，可以暂时关闭
+
+
+
+
+####配置samba服务
+/etc/samba/smb.conf
+########服务端
+[root@server ~]# setenforce 0		#########临时关闭selinux，！！！当排除的时候一定要记得排除selinux关闭与否
+[root@server ~]# yum install -y samba samba-client   samba-*		####安装相应的包
+
+[root@server ~]# mkdir /common			####创建共享目录
+[root@server ~]# echo "hello world" > /common/smb.txt	####生成测试文件
+
+[root@server ~]# vim /etc/samba/smb.conf
+###修改配置文件
+[common]		####共享名称可改
+	comment = Commonshare    	#共享描述
+	path = /common		#共享路径
+	browseable = yes		#所有人是否可见
+	guest ok = no		#拒绝匿名用户访问
+	writable = yes		#数据可写入
+
+[root@server ~]# chcon -t samba_share_t /common		####修改selinux上下文权限（这一步不能省略，/common是你的共享路径）
+
+[root@server ~]# useradd -s /sbin/nologin  harry
+[root@server ~]# smbpasswd -a harry			####（-a选项必不可少）
+New SMB password:					###若没找到命令，检查samba-client是否安装了
+Retype new SMB password:				### -a 添加smb账户并设置密码	
+Added user harry.					### -x	删除smb用户；-d	禁用smb用户；-e	启用smb用户
+
+####重启服务，防火墙允许服务通过
+[root@server ~]# systemctl restart smb nmb		
+[root@server ~]# systemctl enable smb nmb
+Created symlink from /etc/systemd/system/multi-user.target.wants/smb.service to /usr/lib/systemd/system/smb.service.
+Created symlink from /etc/systemd/system/multi-user.target.wants/nmb.service to /usr/lib/systemd/system/nmb.service.
+[root@server ~]# firewall-cmd --permanent --add-service=samba
+success
+[root@server ~]# firewall-cmd --reload
+success
+
+
+####客户端
+- windows客户端的操作
+	- win + r   ————> \\192.168.8.87\		####自己服务端的地址，具体目录中的samba图
+输入完成之前设置的harry用户的密码后，会显示共享的/common目录以及harry用户的家目录
+
+此时在harry用户的家目录有读写权限（创建文件，查看文件）
+但是在common共享目录智能查看，没用写权限（创建文件权限）
+需要在服务端给harry用户权限才能操作。
+[root@server ~]# chown harry /common -R		##给权限的方式之一
+[root@server ~]# ll /
+total 40
+lrwxrwxrwx.   1 root      root          7 Mar  7 00:54 bin -> usr/bin
+dr-xr-xr-x.   5 root      root       4096 Mar  8 21:42 boot
+drwxr-xr-x.   2 harry     root         21 Mar 23 17:22 common		###改成功后，就可以创建文件了
+
+
+- linux客户端的操作
+[root@bobo ~]#  yum install samba-client -y
+[root@bobo ~]# smbclient -U harry //192.168.8.87/common	####连接samba
+Enter SAMBA\harry's password: 
+session setup failed: NT_STATUS_LOGON_FAILURE		#####出现这个说明密码错误，或者harry没添加到samba客户
+[root@bobo ~]# smbclient -U harry //192.168.8.87/common
+Enter SAMBA\harry's password: 
+Try "help" to get a list of possible commands.
+smb: \> ls						###测试是否共享成功
+  .                                   D        0  Mon Mar 23 17:56:43 2020
+  ..                                  D        0  Mon Mar 23 17:22:15 2020
+  smb.txt                             N       12  Mon Mar 23 17:22:40 2020
+  wtf.txt                             A        0  Mon Mar 23 17:56:41 2020
+
+		204371460 blocks of size 1024. 198539084 blocks available
+smb: \> exit
+
+###挂载使用
+[root@bobo ~]#  mkdir /common
+[root@bobo ~]# mount -t cifs //192.168.8.87/common /common/ -o username=harry,password=777777	#####samba服务挂载类型一定是cifs别写错了
+[root@bobo ~]# df -hT
+Filesystem            Type      Size  Used Avail Use% Mounted on
+devtmpfs              devtmpfs  895M     0  895M   0% /dev
+tmpfs                 tmpfs     910M     0  910M   0% /dev/shm
+tmpfs                 tmpfs     910M   11M  900M   2% /run
+tmpfs                 tmpfs     910M     0  910M   0% /sys/fs/cgroup
+/dev/sda2             ext4       50G  4.4G   43G  10% /
+/dev/sda1             ext4      190M  147M   30M  84% /boot
+tmpfs                 tmpfs     182M  4.0K  182M   1% /run/user/42
+tmpfs                 tmpfs     182M   28K  182M   1% /run/user/0
+/dev/sr0              iso9660   4.4G  4.4G     0 100% /run/media/root/CentOS 7 x86_64
+//192.168.8.87/common cifs      195G  5.6G  190G   3% /common
+或者永久挂载
+[root@bobo ~]#vim /etc/fstab
+//192.168.8.87/common   /common cifs    defaults,useranme=harry,password=777777 0 0
+[root@bobo ~]#mount -a
+
+[root@bobo ~]# cd /common/
+[root@bobo common]# ls
+smb.txt  wtf.txt
+[root@bobo common]# cat smb.txt 
+hello world
+[root@bobo common]# touch b.txt		###客户端创建
+[root@bobo common]# echo "woshinibaba" > b.txt 
+[root@bobo common]# cat b.txt 
+woshinibaba
+
+[root@server common]# cat b.txt 		###服务端查看
+woshinibaba
+###成功
+
+
+
+## 配置文件讲解
+	- /etc/samba/smb.conf
+	- 配置文件中以#开头或；符号开头的为注释行
+	- 分为global全局配置与其他段配置
+		
+	- 全局配置与共享段配置冲突，共享段配置有效	
+		【global】全局段
+		【common】共享段（类似的都是）
+
+[global]				#定义全局策略
+        workgroup = SAMBA		#定义工作组
+        security = user		#安全等级，有四种
+				#share： 用户不需要帐号密码即可登录samba服务器
+　　　　　　　　　　　　　　 	#user : 由提供服务的samba服务器负责检查账户及密码（默认）
+                                                   	#server ：检查帐号密码的工作由另外Windows或samba服务器负责
+                                                    	#domain ： 指定Windows域控制服务器来验证用户的账户及密码
+
+        passdb backend = tdbsam	#用户后台，有三种
+				 #smbpasswd ： 使用smb工具smbpasswd给系统用户设置一个samba密码，客户端就用此密码访问samba 资源。smbpasswd在/etc/samba中，有时需要手动创建该文件。
+　　　　　　　　　　　　　　　　	#tdbsam : 使用数据库文件创建用户数据库。数据库文件叫passdb.tdb,在/etc/samba中。passdb.tdb可使用smbpasswd -a创建samba用户，要创建的samba用户必须是系统用户。
+				也可使用pdbedit创建samba账户。pdbedit参数很多。列出几个重要的：
+					#pdbedit -a username :新建用户
+					#pdbedit -x username :删除用户
+					#pdbedit -L :列出用户列表，读取passdb.tdb数据库文件
+					#pdbedit -Lv : 列出用户列表详细信息
+					#pdbedit -c "[D]" -u username : 暂停该用户帐号
+					#pdbedit -c "[]" -u username : 恢复该用户帐号
+　　　　　　　　　　　　　　　　	# ldapsam：基于LDAP帐号管理方式验证用户。首先要建立LDAP服务，设置“passdb backend = ldapsam:ldap://LDAP Server”
+#####可选，默认是没的，全局配置与共享段配置都可设置
+#        hosts allow =192.168.1.10	
+#只允许192.168.1.10的IP地址访问
+#       hosts deny = IP(网段、域名)	
+#除指定IP拒绝访问，其余的全部允许
+#        create mask = 444			
+#设置用户上传或新建文件权限（建议将x权限取消）
+#        directory mask = 555
+#设置用户上传或新建文件夹的权限（建议为755）
+
+
+
+        printing = cups
+        printcap name = cups
+        load printers = yes		#客户端在10分钟内没有打开任何Samba资源，
+                                                              	#服务器将自动关闭回话。
+        cups options = raw
+
+[homes]				#共享名称
+        comment = Home Directories	#注释，共享的描述信息
+        valid users = %S, %D%w%S	#允许访问该共享的用户
+        browseable = No		#共享目录是否可以被浏览
+        read only = No
+        inherit acls = Yes
+
+[printers]				#设置打印机共享
+        comment = All Printers
+        path = /var/tmp		
+        printable = Yes
+        create mask = 0600
+        browseable = No
+
+[print$]
+        comment = Printer Drivers
+        path = /var/lib/samba/drivers
+        write list = @printadmin root
+        force group = @printadmin
+        create mask = 0664
+        directory mask = 0775
+
+[common]
+        comment = Commonshare
+        path = /common		#共享目录
+        browseable = yes		#所有人是否可读
+        guest ok = no			#拒绝匿名用户访问
+        writable = yes			#所有人是否可写
+
+
+## samba应用案例
+	-newBJTLXY
+	- 商务部，设计部，开发部，运维部
+	- 商务部：负责与客户沟通，为客户提供一定建设性方案
+	- 设计部：学习计划，制定一定的相关文档
+	- 开发部：根据商务部与设计部的工作进行干活
+	- 运维部
+
+
+	- 需求：文件共享
+		- 各个部门之间进行文件共享
+		- 每个部门拥有独自的共享
+
+	- 创建共享目录
+		- /new/sales
+		- /new/design
+		- /new/develop
+		- /new/ops
+		- /new/share  为整个公司的文件共享
+###实现步骤
+[root@server common]# mkdir -p /new/{sales,design,develop,ops,share/{sales,design,develop,ops}}
+[root@server common]# tree /new
+/new
+├── design
+├── develop
+├── ops
+├── sales
+└── share
+    ├── design
+    ├── develop
+    ├── ops
+    └── sales
+
+#####增加共享用户
+[root@server common]# cd /new/
+[root@server new]# ls
+design  develop  ops  sales  share
+[root@server new]# vim adduser.sh
+#!/bin/bash
+#Add user for share
+USERS=(sales desgin develop ops)
+for user in ${USERS[@]}
+	do
+	groupadd $user
+	for num in $(seq 1 2)
+		do
+			useradd -M -s /sbin/nologin -g ${user} ${user}${num}
+		done
+	done
+[root@server new]# sh adduser.sh 
+[root@server new]# id ops1
+uid=1009(ops1) gid=1007(ops) groups=1007(ops)
+[root@server new]# id ops2
+uid=1010(ops2) gid=1007(ops) groups=1007(ops)
+####将用户加入到samba用户中
+[root@server ~]# smbpasswd -a ops1		###以ops1做实验
+
+
+###### 修改配置文件
+	workgroup = SAMBA
+[sales]
+	comment = sales share
+	path = /new/sales
+	browseable = yes
+	guest ok = no
+	writable = no
+	write list = @sales
+[develop]
+	comment = develop share
+	path = /new/develop
+	browseable = yes
+	guest ok = no
+	writable = no
+	write list = @develop
+[design]
+	comment = design share
+	path = /new/design
+	browseable = yes
+	guest ok = no
+	writable = no
+	write list = @desgin
+[ops]
+	comment = ops share
+	path = /new/ops
+	browseable = yes
+	guest ok = no
+	writable = no
+	write list = @ops
+[share]
+	comment = common share
+	path = /new/share
+	browseable = yes
+	guest ok = no
+	writable = yes
+
+##修改权限
+[root@server new]# chcon -t samba_share_t /new/{design,sales,share,develop,ops}
+[root@server new]# chmod 1770 /new/{design,sales,develop,ops}
+[root@server new]# chmod 1777 /new/share/
+[root@server new]# chown :sales /new/sales/
+[root@server new]# chown :develop /new/develop/
+[root@server new]# chown :ops /new/ops/
+[root@server new]# chown :desgin /new/design/
+systemctl restart smb nmb
+systemctl enable smb nmb
+firewall-cmd --permanent --add-service=samba
+firewall-cmd --reload 
+
+
+########客户端使用
+-windows端
+不知道如何清楚用户信息，因为之前用过harry用户连接，系统默认记住用户信息，一直都是以harry连接，不知道如何切换ops1用户
+
+-linux端
+[root@bobo /]# mkdir -p /new/{sales,design,develop,ops,share/{sales,design,develop,ops}}
+[root@bobo ops]# mount -t cifs //192.168.8.87/ops /new/ops/ -o username=harry,password=777777		###因为权限设置，harry用户无法挂载ops目录
+mount error(13): Permission denied
+Refer to the mount.cifs(8) manual page (e.g. man mount.cifs)
+
+[root@bobo common]# mount -t cifs //192.168.8.87/ops /new/ops/ -o username=ops1,password=777777
+[root@bobo common]# cd /new/ops/
+[root@bobo ops]# ls
+[root@bobo ops]# touch a.txt
+[root@bobo ops]# echo "aaa" > a.txt 
+
+[root@server ops]# ll
+total 4
+-rwxr--r--. 1 ops1 ops 4 Mar 23 21:26 a.txt	###客户端端以ops1身份创建的a.txt在服务端显示
+
+##完成samba服务需求的搭建
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

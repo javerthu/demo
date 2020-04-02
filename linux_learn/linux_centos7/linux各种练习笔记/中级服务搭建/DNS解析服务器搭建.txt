@@ -1,0 +1,156 @@
+DNS域名服务器（Domain Name system）域名系统，主要实现域名与ip地址之间的解析
+
+DNS结构
+	一般分为：主机名.三级域名.二级域名.顶级域名.
+	最后一个点代表根域，所以域的起点，如www.baidu.com省略了最后的根域.
+	.com为顶级域名，.baidu为二级域名，www主机名
+	
+
+域名查询
+	是否本机、本地缓存、HOSTS文件、DNS根服务器（根服务器返回顶级域名服务器地址如.com）、 顶级域名服务器一层一层查询
+
+DNS服务器分类
+	- 高速缓存服务器
+		- 将每次域名查询结果缓存到本地
+	- 主DNS服务器
+		- 提供权威的域名信息。可信赖
+	- 辅助DNS服务器
+		- DNS来源于主DNS服务器
+
+DNS服务器搭建
+- unbound  DNS服务
+/etc/unbound/unbound.conf
+[root@server ~]# yum install unbound -y
+[root@server ~]# systemctl start unbound
+[root@server ~]# systemctl enable unbound
+Created symlink from /etc/systemd/system/multi-user.target.wants/unbound.service to /usr/lib/systemd/system/unbound.service.
+
+[root@server ~]# netstat -tunlp |grep unbound		##查看服务监听端口只有127.0.0.1:port只是本地监控，修改配置文件监听端口
+
+
+##修改配置文件监听端口
+[root@server ~]# vim /etc/unbound/unbound.conf 
+# interface: 0.0.0.0		##把这行的注释放开，wq保存退出
+
+[root@server ~]# systemctl restart unbound	
+##若出现启动失败can't bind socket: Address already in use ...0.0.0.0，是因为端口被占用了
+[root@server ~]# netstat -ntulp|grep 53
+tcp        0      0 192.168.122.1:53        0.0.0.0:*               LISTEN      2121/dnsmasq        
+udp        0      0 192.168.122.1:53        0.0.0.0:*                           2121/dnsmasq        
+udp        0      0 0.0.0.0:5353            0.0.0.0:*                           654/avahi-daemon: r 
+[root@server ~]# kill 2121
+[root@server ~]# netstat -ntulp|grep 53
+udp        0      0 0.0.0.0:5353            0.0.0.0:*                           654/avahi-daemon: r
+[root@server ~]# systemctl restart unbound		#在重启即可
+
+[root@server ~]# netstat -tunlp |grep unbound
+tcp        0      0 127.0.0.1:8953          0.0.0.0:*               LISTEN      4080/unbound        
+tcp        0      0 0.0.0.0:53              0.0.0.0:*               LISTEN      4080/unbound    		##出现这个即可   
+tcp6       0      0 ::1:8953                :::*                    LISTEN      4080/unbound        
+udp        0      0 0.0.0.0:53              0.0.0.0:*                           4080/unbound        
+udp        0      0 0.0.0.0:53              0.0.0.0:*                           4080/unbound        
+udp        0      0 0.0.0.0:53              0.0.0.0:*                           4080/unbound        
+udp        0      0 0.0.0.0:53              0.0.0.0:*                           4080/unbound 
+
+
+##修改配置文件主机查询范围，设置允许谁访问，不允许谁访问
+[root@server ~]# vim /etc/unbound/unbound.conf 
+# access-control: 0.0.0.0/0 refuse		#找到这一行，可以/access 查找N匹配下一个找到。
+放开注释并修改为：access-control: 0.0.0.0/0 allow	#表示允许所有人访问，wq保存退出即可
+
+
+主配置文件修改
+可在/etc/unbound/unbound.conf里找这行，上面有修改示例include: /etc/unbound/local.d/*.conf
+DNS解析：
+	正向解析格式
+		local-data: "example.com A 192.0.2.3"
+	反向解析格式
+		local-data-ptr: "192.0.2.3 www.example.com"
+	解析文件地址
+		include: /etc/unbound/local.d/*.conf
+
+
+[root@server ~]# vim /etc/unbound/local.d/tlxy.conf	##在解析文件地址创建一个tlxy.conf（必须以.conf结尾）
+[root@server local.d]# cat tlxy.conf 
+local-zone: "javert.com." static
+local-data: "javert.com. 3600 IN SOA server.javert.com. root 1 1D 1H 1W 1H"
+local-data: "server.javert.com.   IN  A 192.168.8.87"
+local-data: "www.javert.com.    IN  A 192.168.8.87"
+local-data-ptr: "192.168.8.87  server.javert.com."
+local-data-ptr: "192.168.8.87  www.javert.com."
+
+###相关参数解释##
+SOA记录：域权威记录，说明本机服务器为该域的管理服务器
+
+###相关参数解释##
+[root@server local.d]# vim /etc/resolv.conf
+nameserver 192.168.8.87
+[root@server ~]# systemctl restart unbound
+[root@server ~]# unbound-checkconf
+
+[root@server local.d]# ping www.javert.com	##ping一下测试一下，如果有问题unbound服务是activi状态，十有八九是/etc/resolv.conf文件出了问题
+
+[root@server local.d]# nslookup		##专用验证DNS
+> server
+Default server: 192.168.8.87
+Address: 192.168.8.87#53
+> 192.168.8.87				#正向解析成功
+87.8.168.192.in-addr.arpa	name = www.javert.com.
+87.8.168.192.in-addr.arpa	name = server.javert.com.
+> www.javert.com				#反向解析
+Server:		192.168.8.87
+Address:	192.168.8.87#53
+
+Name:	www.javert.com
+Address: 192.168.8.87
+> server.javert.com				#反向解析
+Server:		192.168.8.87
+Address:	192.168.8.87#53
+
+Name:	server.javert.com
+Address: 192.168.8.87
+> exit
+
+#简单的unbound  DNS服务搭建完成
+
+
+	
+- bind DNS服务提供	#没做出来
+/etc/named.conf
+[root@client ~]# yum install bind -y
+[root@client ~]# systemctl start named
+[root@client ~]# systemctl enable named
+Created symlink from /etc/systemd/system/multi-user.target.wants/named.service to /usr/lib/systemd/system/named.service.
+
+[root@client ~]# firewall-cmd --permanent --add-service=dns
+success
+[root@client ~]# firewall-cmd --reload 
+success
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

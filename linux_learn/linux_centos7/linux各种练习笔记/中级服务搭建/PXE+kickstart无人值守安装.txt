@@ -1,0 +1,248 @@
+# PXE+kickstart实现无人值守安装
+	- 高效的统一部署方式
+	- 通过网络方式进行安装
+	- 结合自动应答文件实现无人部署操作
+	- 需要提前配置一台安装服务器
+
+## 安装部署流程
+	- 客户端需要现在BIOS中设置网络引导
+	- 客户端启动后通过广播寻找DHCP服务器
+	- 找到获取相应地址信息同时DHCP告诉客户端TFTP的位置
+	- 从TFTP服务上下载启动文件到本地内存
+	- 实现无盘启动
+
+	- 在启动文件中设置kickstart文件共享位置，实现无人值守安装
+
+## TFTP服务器
+	简单文件共享服务
+	小巧方便
+	在此放置启动文件
+
+## PXE
+	
+	- 网络引导
+	- Inter公司  CS
+	- 通过网络让客户端从远端服务器下载启动镜像，实现网络引导
+
+## kickstart
+	- kickstart目前主流的一种无人值守自动部署安装操作系统的方式
+	- 核心文件叫做自动应答文件(kickstart文件)
+
+	- kickstart文件三种生成方式
+		- 手动书写		##/root/anaconda-ks.cfg 就是kickstart文件
+		- 通过system-config-kickstart图形工具
+		- 通过红帽的安装程序anconda自动生成
+
+	yum install system-config-kickstart -y
+
+
+[root@centos7 ~]# yum install system-config-kickstart -y
+[root@centos7 ~]# system-config-kickstart			#启动。提示有问题，可以reboot试试
+在打开的图形界面，installation Method(第二个) 选择HTTP
+
+
+
+
+## 利用DHCP+TFTP+http搭建无人值守安装
+前提条件：关闭selinux，关闭防火墙
+[root@centos7 ~]# systemctl stop firewalld.service 
+[root@centos7 ~]# systemctl disable firewalld.service 
+Removed symlink /etc/systemd/system/multi-user.target.wants/firewalld.service.
+Removed symlink /etc/systemd/system/dbus-org.fedoraproject.FirewallD1.service.
+[root@centos7 ~]# setenforce 0
+
+
+##搭建DHCP服务器
+[root@centos7 ~]# yum install dhcp -y
+[root@centos7 ~]# vim /etc/dhcp/dhcpd.conf 
+:r /usr/share/doc/dhcp*/dhcpd.conf.example		##命令模式r 路径把实例文件读进来
+
+[root@centos7 ~]# cat /etc/dhcp/dhcpd.conf 
+# Sample configuration file for ISC dhcpd
+#
+
+# option definitions common to all supported networks...
+option domain-name "example.com";
+option domain-name-servers 192.168.8.87;
+
+default-lease-time 600;
+max-lease-time 7200;
+
+# This declaration allows BOOTP clients to get dynamic addresses,
+# which we don't really recommend.
+
+# A slightly different configuration for an internal subnet.
+subnet 192.168.8.0 netmask 255.255.255.0 {
+  range 192.168.8.100 192.168.8.110;
+  option domain-name-servers 192.168.8.87;
+  option domain-name "example.com";
+  option routers 192.168.8.254;
+  option broadcast-address 192.168.8.255;
+  default-lease-time 600;
+  max-lease-time 7200;
+  next-server 192.168.8.87;					##TFTP服务地址，在此次实验也就是服务器本身
+  filename "/pxelinux.0";					##网络引导圣墟，在TFTP根目录下的pxelinux.0，需要自己创建
+}
+
+[root@centos7 ~]# systemctl restart dhcpd
+[root@centos7 ~]# systemctl enable dhcpd
+Created symlink from /etc/systemd/system/multi-user.target.wants/dhcpd.service to /usr/lib/systemd/system/dhcpd.service.
+[root@centos7 ~]# systemctl status dhcpd
+
+
+## 搭建TFTP服务器
+[root@centos7 ~]# yum install tftp-server.x86_64 -y
+[root@centos7 ~]# vim /etc/xinetd.d/tftp 		##配置文件
+service tftp
+{
+        socket_type             = dgram
+        protocol                = udp
+        wait                    = yes
+        user                    = root
+        server                  = /usr/sbin/in.tftpd
+        server_args             = -s /var/lib/tftpboot		##tftp根目录
+        disable                 = no				##初始为yes，改为no开启即可
+        per_source              = 11
+        cps                     = 100 2
+        flags                   = IPv4
+}
+
+
+[root@centos7 ~]# yum install xinetd			##提示没这个服务，我又安装了一遍，我记得之前有啊
+[root@centos7 ~]# systemctl restart xinetd.service 
+[root@centos7 ~]# systemctl enable xinetd.service
+
+
+## 下载网络引导文件
+[root@centos7 ~]# yum install syslinux -y
+[root@centos7 ~]# cp /usr/share/syslinux/pxelinux.0 /var/lib/tftpboot/	##把下载好的pxelinux.0引导文件，拷贝到tftp根目录/var/lib/tftpboot/下
+
+##必须创建pxelinux.cfg这个目录，默认在这找安装文件
+[root@centos7 ~]# mkdir /var/lib/tftpboot/pxelinux.cfg		#创建/var/lib/tftpboot/pxelinmux.cfg
+
+
+#将isolinux.cfg拷贝到/var/lib/tftpboot/pxelinux.cfg该目录下并改名default
+####/mnt/cdrom/isolinux的文件全都要拷贝到tftp根目录（也就是/var/lib/tftpboot/）#######
+[root@centos7 isolinux]# pwd
+/mnt/cdrom/isolinux
+[root@centos7 isolinux]# ls
+boot.cat  boot.msg  grub.conf  initrd.img  isolinux.bin  isolinux.cfg  memtest  splash.png  TRANS.TBL  vesamenu.c32  vmlinuz
+#####上面的无需操作，知道即可######
+[root@centos7 isolinux]# cp -r /mnt/cdrom/isolinux/* /var/lib/tftpboot/
+[root@centos7 isolinux]# cp /var/lib/tftpboot/isolinux.cfg /var/lib/tftpboot/pxelinux.cfg/default	##拷贝改名为default，默认路径不能改
+
+此时新建一个虚拟机，重点网络连接模式要和主机一样（本地就本地，桥接就桥接）
+Mar 26 20:13:17 centos7 dhcpd[4480]: DHCPDISCOVER from 00:0c:29:c5:2d:cd via ens32
+Mar 26 20:13:18 centos7 dhcpd[4480]: DHCPOFFER on 192.168.8.100 to 00:0c:29:c5:2d:cd via ens32
+Mar 26 20:13:19 centos7 dhcpd[4480]: DHCPREQUEST for 192.168.8.100 (192.168.8.87) from 00:0c:29:c5:2d:cd via ens32
+Mar 26 20:13:19 centos7 dhcpd[4480]: DHCPACK on 192.168.8.100 to 00:0c:29:c5:2d:cd via ens32
+此时若服务端的dhcp有此消息，则证明引导文件没问题，下一步安装http网络服务
+
+
+##安装http服务
+[root@centos7 isolinux]# yum install httpd -y
+[root@centos7 isolinux]# systemctl restart httpd
+[root@centos7 isolinux]# systemctl enable httpd
+[root@centos7 isolinux]# mkdir /var/www/html/pub		##存放光盘路径，光盘的挂载点
+[root@centos7 isolinux]# mkdir /var/www/html/ks 		##存放自动应答文件
+
+## 重新挂载光盘镜像到/var/www/html/pub
+[root@centos7 ~]# umount /mnt/cdrom/
+umount: /mnt/cdrom/: not mounted
+[root@centos7 ~]# mount /dev/cdrom /var/www/html/pub/
+mount: /dev/sr0 is write-protected, mounting read-only
+[root@centos7 ~]# df -hT
+/dev/sr0       iso9660   4.4G  4.4G     0 100% /var/www/html/pub
+
+此时在浏览器访问http://192.168.8.87/pub/  应出现对应的文件
+
+[root@centos7 ~]# vim /var/lib/tftpboot/pxelinux.cfg/default 
+
+append initrd=initrd.img inst.stage2=hd:LABEL=CentOS\x207\x20x86_64 quiet		##原第64行的内容
+append initrd=initrd.img inst.stage2=http://192.168.8.87/pub quiet			##改为http引导，保存退出wq!
+
+此时再次打开刚新建的虚拟机，（可能需要等待时间长一点），即使没光盘文件也可安装linux系统了
+不过还是和有光盘文件一样，一步一步安装，接着来生成ks.cfg文件完成自动安装。
+
+##自动配置
+[root@centos7 ~]# yum install system-config-kickstart -y
+[root@centos7 ~]# system-config-kickstart
+设置相关选项看文件夹内得图，但是到packge包时无显示，有问题，解决方法如下
+[root@centos7 ~]# vim /etc/yum.repos.d/dvd.repo 
+[development]					#原[dvd]，必须改
+name=dvd
+baseurl=http://192.168.8.87/pub			#原baseurl=file:///mnt/cdrom
+gpgcheck=0
+enabled=1
+
+system-config-kickstart配置完全后保存文件到/root/目录下，文件默认名是ks.cfg
+[root@centos7 ~]# cp /root/ks.cfg /var/www/html/ks/ks.cfg				##将生成的ks.cfg文件并拷贝至/var/www/html/ks/下
+
+
+
+[root@centos7 ~]# vim /var/lib/tftpboot/pxelinux.cfg/default 
+
+在menu separator # insert an empty line上加上下面一条
+label linux
+  menu label ^Install CentOS 7 to pxe
+  kernel vmlinuz 
+  append initrd=initrd.img inst.stage2=http://192.168.8.87/pub ks=http://192.168.8.87/ks/ks.cfg
+：wq!保存退出
+
+此时再启动刚新建的虚拟机，在启动界面选择CentOS 7 to pxe选项
+等待即可，完成自动安装。试了成功了
+
+
+
+
+
+#####下面自己没试，记住kernel /rhel6/vmlinuz路径的改变
+## rhel6安装
+	mount /data/iso镜像文件  /mnt/cdrom
+	cp /mnt/cdrom/isolinux/vmlinuz linird.img /var/lib/tftpboot/rhel6
+	cat /var/lib/tftpboot/pxelinux.cfg/default
+	 label linux
+ 	 menu label ^Install RHEL 6 to pxe
+     kernel /rhel6/vmlinuz
+     append initrd=/rhel6/initrd.img inst.stage2=http://192.168.0.20/rhel6
+    menu separator # insert an empty line
+
+
+	##安装源
+		mkdir /var/www/html/rhel6
+		mount /data/iso镜像文件  /var/www/html/rhel6 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,245 @@
+# 触发器
+	- 触发器主要是由INSERT，UPDATE，DELETE等事件来触发某种特定的操作，满足触发器触发的条件，数据库系统就会执行触发器中定义的程序语句
+	- 保证某些操作的一致性
+	- 创建只有一个执行语句的触发器
+		- CREATE TRIGGER 触发器名 BEFFORE | AFTER 触发事件 ON 表名  FOR EACH ROW 执行语句；
+			- 触发器名需要创建的触发器名称
+			- BEFFORE | AFTER 指定触发器执行的时间
+			- 触发事件指的就是触发条件
+			- FOR EACH ROW 表示任何一条记录商店额操作满足触发事件都会触发触发器
+			- 执行语句指定触发器被触发后执行的程序
+			-
+
+		- CREATE TRIGGER food_tri BEFORE INSERT ON food FOR EACH ROW INSERT INTO food VALUES(NOW());
+
+
+	- 创建有多个执行语句的触发器
+		- CREATE TRIGGER 触发器名  BEFORE|AFTER 触发事件
+		- ON 表名  FOR EACH ROW
+		- BEGIN
+			- 执行语句列表
+		- END
+
+	注意：
+		Mairadb默认以‘;’作为结束执行语句的标识
+		在触发器中需要用到';'
+		为了解决该问题，可以使用DELIMITER语句指定结束标识
+		DELIMITER &&				#指定sql语句的结束标识符
+		DELIMITER ；
+
+
+		- MariaDB [EXAMPLE]> DELIMITER &&		##将结束标识改为&&，原本是;
+		MariaDB [EXAMPLE]> CREATE TRIGGER food_tri2 AFTER DELETE
+		    -> ON food FOR EACH ROW
+		    -> BEGIN
+		    -> INSERT INTO food VALUES('21:00:00');
+		    -> INSERT INTO food VALUES('21:00:00');
+		    -> END
+		    -> &&					##必须加，此时&&代替;作为sql语句的标识符
+		Query OK, 0 rows affected (0.01 sec)
+		
+		MariaDB [EXAMPLE]> DELIMITER ;		##将结束标识改回;
+		MariaDB [EXAMPLE]> 
+
+
+
+## 查看触发器
+	- 指查看数据库中已存在的触发器的定义，状态和语法等信息
+		- SHOW TRIGGERS\G
+		- SHOW TRIGGERS;
+		- 查询表information_schema库下的TRIGGERS
+
+
+		MariaDB [EXAMPLE]> show triggers\G			#\G让输出结果好看点
+		*************************** 1. row ***************************
+		             Trigger: food_tri
+		               Event: INSERT
+		               Table: food
+		           Statement: INSERT INTO food VALUES(NOW())
+		              Timing: BEFORE
+		             Created: NULL
+		            sql_mode: 
+		             Definer: root@localhost
+		character_set_client: utf8
+		collation_connection: utf8_general_ci
+		  Database Collation: utf8_general_ci
+		*************************** 2. row ***************************
+		             Trigger: food_tri2
+		               Event: DELETE
+		               Table: food
+		           Statement: BEGIN
+		INSERT INTO food VALUES('21:00:00');
+		INSERT INTO food VALUES('21:00:00');
+		END
+		              Timing: AFTER
+		             Created: NULL
+		            sql_mode: 
+		             Definer: root@localhost
+		character_set_client: utf8
+		collation_connection: utf8_general_ci
+		  Database Collation: utf8_general_ci
+		2 rows in set (0.00 sec)
+		
+		MariaDB [EXAMPLE]> 
+
+
+
+
+	SELECT * FROM information_schema.triggers\G
+	SELECT * FROM information_schema.triggers WHERE TRIGGER_NAME='food_tri2'\G
+
+
+
+
+
+## 删除触发器
+	DROP TRIGGER 触发器名
+		- DROP TRIGGER food_tri2;
+
+
+
+
+
+## 触发器练习
+CREATE TABLE product(
+id INT(10) NOT NULL UNIQUE PRIMARY KEY,
+name VARCHAR(20) NOT NULL,
+function VARCHAR(50),
+company VARCHAR(20) NOT NULL,
+address VARCHAR(50)
+);
+	MariaDB [EXAMPLE]> CREATE TABLE product(
+	    -> id INT(10) NOT NULL UNIQUE PRIMARY KEY,
+	    -> name VARCHAR(20) NOT NULL,
+	    -> function VARCHAR(50),
+	    -> company VARCHAR(20) NOT NULL,
+	    -> address VARCHAR(50)
+	    -> );
+	Query OK, 0 rows affected (0.00 sec)
+	
+	MariaDB [EXAMPLE]> 
+
+CREATE TABLE operate(
+op_id INT(10) NOT NULL UNIQUE PRIMARY KEY AUTO_INCREMENT,
+op_type VARCHAR(20) NOT NULL,
+op_time TIME NOT NULL
+);
+	
+	MariaDB [EXAMPLE]> CREATE TABLE operate(
+	    -> op_id INT(10) NOT NULL UNIQUE PRIMARY KEY AUTO_INCREMENT,
+	    -> op_type VARCHAR(20) NOT NULL,
+	    -> op_time TIME NOT NULL
+	    -> );
+	Query OK, 0 rows affected (0.01 sec)
+	
+	MariaDB [EXAMPLE]> 
+
+
+	- 创建product_bf_insert触发器
+		MariaDB [EXAMPLE]> CREATE TRIGGER product_bf_insert BEFORE INSERT ON product FOR EACH ROW INSERT INTO operate VALUES(null,'Insert product',now());
+		Query OK, 0 rows affected (0.01 sec)
+		
+		MariaDB [EXAMPLE]> 
+	- SELECT * FROM information_schema.triggers WHERE TRIGGER_NAME='product_bf_insert'\G
+
+	- 创建product_af_update触发器
+CREATE TRIGGER product_af_update 
+AFTER UPDATE ON product FOR EACH ROW
+INSERT INTO operate VALUES(null,'Update product',now());
+
+		MariaDB [EXAMPLE]> CREATE TRIGGER product_af_update 
+		    -> AFTER UPDATE ON product FOR EACH ROW
+		    -> INSERT INTO operate VALUES(null,'Update product',now());
+		Query OK, 0 rows affected (0.01 sec)
+		
+		MariaDB [EXAMPLE]> 
+	
+	- 创建product_af_del触发器
+		- CREATE TRIGGER product_af_del  AFTER DELETE ON product FOR EACH ROW INSERT INTO operate VALUES(null,'Delete product',now());
+
+
+
+
+	- 验证触发器插入操作
+		MariaDB [EXAMPLE]> select * from product;
+		Empty set (0.00 sec)
+		
+		MariaDB [EXAMPLE]> select * from operate;
+		Empty set (0.00 sec)
+		
+		MariaDB [EXAMPLE]> INSERT INTO product VALUES(1,'999感冒灵','治疗感冒','中国北京999制药厂','中南海');
+		Query OK, 1 row affected (0.01 sec)
+		
+		MariaDB [EXAMPLE]> select * from product;
+		+----+--------------+--------------+--------------------------+-----------+
+		| id | name         | function     | company                  | address   |
+		+----+--------------+--------------+--------------------------+-----------+
+		|  1 | 999感冒灵    | 治疗感冒     | 中国北京999制药厂        | 中南海    |
+		+----+--------------+--------------+--------------------------+-----------+
+		1 row in set (0.00 sec)
+		
+		MariaDB [EXAMPLE]> select * from operate;
+		+-------+----------------+----------+
+		| op_id | op_type        | op_time  |
+		+-------+----------------+----------+
+		|     1 | Insert product | 23:51:46 |
+		+-------+----------------+----------+
+		1 row in set (0.00 sec)
+		
+		MariaDB [EXAMPLE]> 
+
+
+
+	- 验证触发器更新操作
+		MariaDB [EXAMPLE]> update product SET address='中国成都省' WHERE id=1;
+		Query OK, 1 row affected (0.00 sec)
+		Rows matched: 1  Changed: 1  Warnings: 0
+		
+		MariaDB [EXAMPLE]> select * from operate;
+		+-------+----------------+----------+
+		| op_id | op_type        | op_time  |
+		+-------+----------------+----------+
+		|     1 | Insert product | 23:51:46 |
+		|     2 | Update product | 23:54:32 |
+		+-------+----------------+----------+
+		2 rows in set (0.00 sec)
+		
+		MariaDB [EXAMPLE]> select * from product;
+		+----+--------------+--------------+--------------------------+-----------------+
+		| id | name         | function     | company                  | address         |
+		+----+--------------+--------------+--------------------------+-----------------+
+		|  1 | 999感冒灵    | 治疗感冒     | 中国北京999制药厂        | 中国成都省      |
+		+----+--------------+--------------+--------------------------+-----------------+
+		1 row in set (0.00 sec)
+		
+		MariaDB [EXAMPLE]> 
+
+
+	- 验证删除操作
+		MariaDB [EXAMPLE]> DELETE FROM product WHERE id=1;
+		Query OK, 1 row affected (0.00 sec)
+		
+		MariaDB [EXAMPLE]> select * from product;
+		Empty set (0.00 sec)
+		
+		MariaDB [EXAMPLE]> select * from operate;
+		+-------+----------------+----------+
+		| op_id | op_type        | op_time  |
+		+-------+----------------+----------+
+		|     1 | Insert product | 23:51:46 |
+		|     2 | Update product | 23:54:32 |
+		|     3 | Delete product | 23:55:22 |
+		+-------+----------------+----------+
+		3 rows in set (0.00 sec)
+		
+		MariaDB [EXAMPLE]> 
+
+
+
+	- 删除触发器
+		- DROP TRIGGER product_af_del;
+		- SELECT * FROM information_schema.triggers\G
+
+
+
+

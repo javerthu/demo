@@ -1,0 +1,126 @@
+## Mairadb数据库高级管理
+	- mairadb用户管理
+	- 数据备份与还原
+	- Mariadb日志
+	- 性能优化
+
+[root@server ~]# mysql -u root -p666666		#是能直接进入的
+
+
+## Mariadb用户管理
+	- 普通用户和root用户
+	- 权限不一样
+	- root用户是超级管理员，拥有所有权限
+		- 包括创建用户，删除用户和修改普通用户密码等管理权限
+	- 普通用户只拥有创建该用户时赋予他的权限
+	- 用户管理
+		- 包括用户的账户和权限
+			- 权限表介绍
+			- 创建和删除普通用户
+			- 普通用户和root用户的密码管理
+			- 权限管理
+
+## 权限表
+use mysql;(权限表都在mysql库中)
+	- 有一个叫做mysql的数据库，该库下存储的都是权限表，用户登陆以后，Mairadb数据库系统会根据这些权限表内容为每个用户赋予相应的权限
+	- 最重要的事urser表，db表和host表&tables_priv，columns_priv，procs_priv
+
+	- user表
+		- user表时mairadb中最重要的一个权限表，
+		- DESC user\G;
+		- 字段大致分为四类（有42个字段）
+			- 用户列
+			- 权限列
+			- 安全列
+			- 资源控制列
+		- 用户列
+			- 主要包括host，user,password,分别为主机名，用户名和密码
+			- 用户登陆首先判断这三个字段，如果这个三个字段同时匹配，数据库系统才会允许登陆
+			- 创建新用户时，也是设置这三个字段
+			- 修改密码时，实际修改的是password字段
+			- 决定用户是否可以登陆
+		- 权限列
+			- 包括以priv结尾的字段
+			- 这些字段决定课用户的权限（一般以priv结尾的类型只有N和Y，N表示没该权限，Y表示有。默认一般为N）
+				- 包括查询权限，修改权限等等普通权限
+				- 关闭服务权限，超级权限和加载用户等高级权限
+			- 普通权限用户操作数据库
+			- 高级管理权限用户对数据库进行管理
+			- 权限类型只有Y和N，Y表示权限可以用在数据库上，N不可以
+			- 安全角度来说默认为N
+			- 赋予权限可以使用GRANT命令，也可以update更新user表
+		- 安全列
+			-  `ssl_type` `ssl_cipher` `x509_issuer` `x509_subject` （只有这四个字段控制安全列）
+			-  ssl 用于加密
+			-  x509标准，用来识别用户
+			-  查看是否支持ssl
+				-  SHOW VARIABLES LIKE 'have_openssl';
+				-  一般发行版本不支持
+		-  资源控制列
+			-  `max_questions``max_updates` `max_connections`，max_user_connections`（四个字段控制资源列）
+			-  max_questions\max_updates:
+				-  规定每小时允许可以执行多少次查询和更新
+			-  max_connections:
+				-  每小时建立多少连接
+			-  max_user_connections
+				-  单个用户可以同时具有的连接数
+			-  这些字段默认都为0（null），没有限制
+
+	- db表与host表（权限列基本一样）
+DESC db;
+DESC host;
+		- db表存储了数据库用户对一个数据库的权限，db表比较常用
+		- host个db表结构差不多，db和host表的字段大致分为俩类
+		- 用户列和权限列
+		-
+
+		- 用户列
+			- db表的用户列三个字段（控制用户列），分别为host，Db，User，分别为主机名/数据库名/用户名
+			- host表俩个字段（控制用户列）：Host,Db,分别为主机名和数据库名
+			- 注意：
+				- host表是Db表的拓展，如果db表中找不到Host字段，就需要到host表中去寻找，但host很少用到，通常Db表设置基本满足需求
+		- 权限列
+			- 用户先根据user表的内容获取权限然后在根据db表的内容获取权限
+
+	- tables_priv表和columns_priv
+DESC tables_priv;
+DESC columns_priv;
+		- tables_priv  可以对单个表进行权限设置（8个字段）
+			-Host(主机名),Db(数据库名),User(用户名),Table_name(表名),Grantor(设置权限者),Timestamp(修改表权限的时间),
+			-Table_priv(对表进行权限操作，选择在下),
+				-Type: set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')
+			-Column_priv(列权限操作，选择在下)
+				-Type: set('Select','Insert','Update','References')
+		- columns_priv  可以对单个数据列进行权限设置（7个字段）
+			-Host(主机名),Db(数据库名),User(用户名),Table_name(表名),Column_name(列名),Timestamp(修改表权限的时间),
+			-Column_priv(列权限操作，选择在下)
+				-Type: set('Select','Insert','Update','References')
+
+		- 注意：
+			- Mariadb中权限分配是按照user表，db表，tables_priv表，columns_priv表的顺序进行分配
+			- 数据库系统中，先判断user表的值是否为Y，如果为Y就不需要检查后面的表，如果为N，则依次检查db表，tables_priv表和columns_priv表
+
+
+	- procs_priv表
+DESC procs_priv\G
+		- procs_priv对存储过程和函数进行权限设置（8个字段）
+			-Host(主机名)，Db(数据库名)，User(用户名)，Routine_name（存储过程或者函数名称），Grantor(设置权限者)，Timestamp（修改表权限的时间）
+			-Routine_type（存储类别，要么是存储过程，要么是存储函数），
+				-Type: enum('FUNCTION','PROCEDURE')
+			-Proc_priv（拥有的权限，选项在下）
+				Type: set('Execute','Alter Routine','Grant')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

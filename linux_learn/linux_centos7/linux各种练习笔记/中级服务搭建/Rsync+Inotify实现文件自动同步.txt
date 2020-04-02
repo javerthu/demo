@@ -1,0 +1,241 @@
+## 利用rsync定义实现数据的备份
+	- 定期实现
+		- 将脚本扔到计划任务中，进行周期执行
+	- rsync脚本编写
+[root@server ~]# echo "pass">/root/rsync.pass
+[root@server ~]# cat /root/rsync.pass 
+pass
+[root@server ~]#  chmod 600 /root/rsync.pass 
+[root@server ~]#  ll /root/rsync.pass 
+-rw-------. 1 root root 5 Mar 28 01:59 /root/rsync.pass
+[root@server ~]# rsync -az --delete --password-file=/root/rsync.pass  tom@192.168.8.87::common /data/$(date +%Y%m%d)		##/root/rsync.pass文件得自己建，里面放对应的密码
+
+[root@server prac]# vim rsync_bask.sh
+[root@server prac]# cat rsync_bask.sh 
+#!/bin/bash
+#This script does backup through rsync.
+		
+export PATH=/bin:/usr/bin:/usr/local/bin
+SRC=common				##源，之前创建的/common目录（也就是要备份的文件）
+DEST=/data				##要备份到哪的地址（目标地址）
+Server=192.168.8.87				##要备份文件的IP地址
+User=tom					##登录使用的用户
+Passfile=/root/rsync.pass			##tom密码存放文件（需要自己创建，并把密码放进去不是配置文件中的用户密码存放地址）
+[ ! -d $DEST ] && mkdir $DEST			#判断目标地址路径是否存在，不存在则创建一个
+[ ! -e $Passfile ] && exit 2			#判断密码存放文件是否存在，不存在则退出
+rsync -az --delete --password-file=$Passfile ${User}@${Server}::$SRC $DEST/$(date +%Y%m%d) && echo "bak is done."	#备份数据到目标地址/年月日 目录中（所有都是为这一条语句服务）
+
+然后crontab计划任务即可
+
+
+
+## Rsync+Inotify实现文件自动同步
+	- 集成在linux内核中
+	- Inotify为用户态应用程序提供文件系统事件的通告机制
+
+	- 常见文件系统事件（Inotify通告）
+		- IN_ACCESS	文件访问事件
+		- IN_MODIFY	文件修改事件
+		- IN_ATTRIB	文件属性修改事件
+		- IN_OPEN	文件打开事件
+		- IN_CLOSE_WRITE	可写文件被关闭事件
+		- IN_CLOSE_NOWRITE	不可以文件被关闭事件
+		- IN_MOVED_FROM
+		- IN_MOVED_TO	文件移动/文件冲命令事件
+		- IN_DELETE		文件或目录的被删除事件
+		- IN_CREATE		文件或目录被创建事件
+		- IN_DELTET_SELF	文件自删除事件
+
+- 软件安装
+[root@server bobo]# wget --no-check-certificate https://github.com/downloads/rvoicilas/inotify-tools/inotify-tools-3.14.tar.gz    	##国内巨慢，自己想办法把
+https://github.com/inotify-tools/inotify-tools		#去下载
+[root@server bobo]# yum install automake libtool -y	#-安装依赖包
+[root@server bobo]# ls
+bbs  Discuz_X2.5_SC_UTF8.zip  inotify-tools-3.14.tar.gz  inotify-tools-master.zip
+[root@server bobo]# unzip inotify-tools-master.zip
+[root@server bobo]# cd inotify-tools-master/
+[root@server inotify-tools-master]# ./autogen.sh configure.ac		##这一步会生成configure 可执行文件，原先是没的
+[root@server inotify-tools-master]# ./configure 
+[root@server inotify-tools-master]# make && make install
+[root@server inotify-tools-master]# inotifywa			##能table出下面两个则证明安装成功或者 inotifywait --help
+inotifywait   inotifywatch  
+
+
+
+## 监控数据
+- inotify-tools提供了俩个应用程序：1、- inotifywait。2、- inotifywatch		
+- inotifywait命令的描述与使用	
+		- 描述：
+			- 使用inotify机制等待文件系统系统事件，实时监控文件系统的变化
+		- 用法
+			- inotifywait [-hcmrq] [-e <event> ] [-t <seconds> ] [--format <fmt> ] [--timefmt <fmt> ] <file> [ ... ]
+		- 选项：
+			-e, --event	指定一个事件监控
+			- h,--help 		显示帮助信息
+			- @file		指定监控路径中的例外文件，应用不需要监控的文件（路径中不需要监控的文件）
+			- fromfile <file> 	从问价中读取需要监控与例外的文件名称，每行一个文件名，如果文件名称以@开头，则表示例外文件
+			-m, --monitor  	接受到事件后不退出。##默认程序在接受一个事件后退出
+			-d, --daemon	与-m类似，但程序会进入后台执行，需要通过--outfile指定时间信息输出文件
+			-o, --outfile <file>	将信息输出（默认为标准输出）
+			-s,  --syslog	将错误信息输出至syslog日志文件系统
+			-q, --quiet		静默模式
+			-c, --csv		以csv格式输出
+			
+##简单应用
+1、 创建测试目录/test和测试文件/etc/foo，运行inotifywait命令监控/test目录，
+然后开启一个终端窗口运行命令cat /test/foo，验证发生查看文件事件后，是否会有事件通知
+[root@server inotify-tools-master]#  mkdir -p /test;echo "hello" > /test/foo
+[root@server inotify-tools-master]# cat /test/foo 
+hello
+[root@server inotify-tools-master]# inotifywait /test/
+Setting up watches.
+Watches established.
+
+[root@server prac]# cat /test/foo	##在另一个table运行cat /test/foo
+此时inotifywait /test/窗口信息
+[root@server inotify-tools-master]# inotifywait /test/
+Setting up watches.
+Watches established.
+/test/ OPEN foo			##侦听到一个打开事件，然后退出
+[root@server inotify-tools-master]# 
+
+2、编写一个脚本实时监控NetworkManagers相关日志信息
+[root@server prac]# vim monitor.sh
+[root@server prac]# cat monitor.sh
+#!/bin/bash
+                
+while inotifywait -e modify /var/log/messages		#只要/var/log/messages修改，进入循环
+do
+if tail -n1 /var/log/messages | grep NetworkManager	#作为查找（因为待会用restart NetworkManager服务来测试，所以）
+then    
+    echo hello					#输出
+fi      
+done   
+[root@server prac]# sh monitor.sh 
+[root@server prac]# systemctl restart NetworkManager	##就能在sh monitor.sh 窗口看到监控过程了
+
+
+
+
+## Rsync&&Inotigy实现（重点应用）实现web数据和发布数据端同步
+[root@server prac]# rsync -avz /home/bobo/inotify-tools-master.zip root@192.168.8.70:/root/			#发送这个包给192.168.8.70
+
+##客户端（web服务端）
+##模拟http服务（web服务器，192.168.8.70）
+[root@client ~]# mkdir -p /var/www/001
+[root@client ~]# chmod 660 /var/www/001/
+[root@client ~]# chown nobody:nobody /var/www/001/
+
+[root@client ~]# vim /etc/rsyncd.conf
+[root@client ~]# cat /etc/rsyncd.conf
+uid = nobody
+gid = nobody
+use chroot = yes
+# max connections = 4
+pid file = /var/run/rsyncd.pid
+log file = /var/log/rsyncd.log
+lock file = /var/run/rsyncd.lock
+ignore error
+# exclude = lost+found/
+# transfer logging = yes
+# timeout = 900
+# ignore nonreadable = yes
+# dont compress   = *.gz *.tgz *.zip *.z *.Z *.rpm *.deb *.bz2
+#
+# [ftp]
+#        path = /home/ftp
+#        comment = ftp export area
+[web1]
+	comment = web content path = /var/www/001
+	path = /var/www/001
+	auth users = tom
+	secrets file = /etc/rsyncd.secrets
+	hosts allow = 192.168.8.0/255.255.255.0
+	hosts deny = *
+	list = false
+
+
+[root@client ~]# echo "tom:123" > /etc/rsyncd.secrets
+[root@client ~]# chmod 600 /etc/rsyncd.secrets 
+[root@client ~]# rsync --daemon
+[root@client ~]# echo "rsync --daemon" >> /etc/rc.local 
+[root@client ~]# firewall-cmd --permanent --add-port=873/tcp
+success
+[root@client ~]# firewall-cmd --reload
+success
+[root@client ~]# 
+
+
+
+# 搭建数据发布服务器
+[root@server bobo]# yum install automake libtool -y	#-安装依赖包
+[root@server bobo]# ls
+bbs  Discuz_X2.5_SC_UTF8.zip  inotify-tools-3.14.tar.gz  inotify-tools-master.zip
+[root@server bobo]# unzip inotify-tools-master.zip
+[root@server bobo]# cd inotify-tools-master/
+[root@server inotify-tools-master]# ./autogen.sh configure.ac		##这一步会生成configure 可执行文件，原先是没的
+[root@server inotify-tools-master]# ./configure 
+[root@server inotify-tools-master]# make && make install
+[root@server inotify-tools-master]# inotifywa			##能table出下面两个则证明安装成功或者 inotifywait --help
+inotifywait   inotifywatch  
+
+##构建脚本
+[root@server prac]# vim rsync_notify.sh
+[root@server prac]# cat rsync_notify.sh 
+#!/bin/bash
+	
+export PATH=/bin:/usr/bin:/usr/local/bin
+	
+SRC=/web_data/
+DEST1=web1
+DEST2=web2
+Client=192.168.8.87					##发布服务器
+User=tom
+Passfile=/root/rsync.pass				##判断密码文件是否存在
+[ ! -e $Passfile ] && exit 2
+inotifywait -mrq --timefmt '%y-%m-%d %H:%M' --format '%T %w%f %e' --event modify,create,move,delete,attrib $SRC | while read line
+do
+echo "$line" > /var/log/inotify_web 2>&1
+/usr/bin/rsync -avz --delete --progress --password-file $SRC ${User}@Client::$DEST1 >> /var/log/sysn_web1 2>&1
+done
+
+
+
+	
+2.拷贝本地机器的内容到远程机器
+[root@server /]# rsync -avz /common 192.168.8.70:/common
+5.拷贝本地机器文件到远程rsync服务器(daemon形式运行rsync)中。当DST路径信息包含”::”分隔符时启动该模式
+$ rsync -av /databack root@172.16.78.192::www				##www是172.16.78.192中的/etc/rsyncd.conf 中的[www]同步文档
+
+总结
+rsync: read error: Connection reset by peer (104)
+rsync error: error in socket IO (code 10) at io.c(785) [sender=3.1.2]		一般是服务器死了，重启下rsync --daemon
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

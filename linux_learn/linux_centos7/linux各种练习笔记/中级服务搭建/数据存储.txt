@@ -1,0 +1,301 @@
+# ICT数据存储
+	- 数据
+		- 对客观事物的数字表示
+	- 数据操作
+		- 数据产生
+		- 数据保存
+		- 数据使用
+		- 数据销毁
+
+	- RPO	##恢复目标点，丢失数据量
+		- 丢失多长时间的数据
+	- RTO	##从宕机到恢复需要的时间
+		- 宕机事件
+	-COD	##停机成本
+		-业务中断期间，每小时的成本
+举例：数据2h备份一次，在8:00->10:00宕机备份失败，10:00->12:00数据恢复。
+RTO为8:00->10:00，2h。RPO为8:00->12:00，4h。
+
+	- ICT组件
+		- 主机：一个有硬盘、硬盘子系统或文件系统，可供数据访问和存储的计算机系统
+		- 存储阵列：带有控制软件的可供访问的一组磁盘或磁带子系统
+		- 网络：提供一组节点之间的互联，并且使得这些互联设备间可以通信
+		- 交换机：一个用于信号转发的网络设备，它可以为接入该设备的任意两个网络节点提供独享的通道
+
+## 三种存储架构
+	- DAS（Direct Attached Storage），块级别数据访问
+		- 直联式存储
+			- 将一个或多个直接连接到使用他们服务器上的指定存储，这些设备为服务器提供块级别数据访问
+		- 举例
+			- 笔记本
+			- 服务器内部硬盘
+			- 直接连接到服务器上的磁带库
+			- 外接硬盘盒
+
+		- 基于存储设备 与服务器之间的关系分为：
+			- 内部DAS			##硬盘在机箱内部
+			- 外部DAS			##硬盘在机箱外部再与机箱相连
+		- DAS连接协议（总线）
+			- ATA（IDE）电子集成驱动器	
+			- SATA	
+			- SCSI（小型计算机接口）	##主要用于主机于外部设备（硬盘）之间进行连接
+				- 串行（主要用于内部DAS）快于并行总线
+				- 并行（主要用于外部DAS）
+			- FC
+				- 高速网络互联
+
+		- DAS的好处：1、对于本地数据提供一个理想方案 2、可靠 3、对于小型环境来说部署迅速 3、部署很简单 4、复杂度小 5、投资小
+		- DAS遇到的挑战：1、可扩展性低：可连接到主机的端口数量有限；可寻址的磁盘数有限；距离限制  2、维护内部DAS时，系统需要下电
+	            		            3、资源共享性较差：阵列前端端口、存储空间难以共存；导致资源孤岛：如存储空间紧张DAS不能共享存储资源过剩的DAS剩余空间
+
+
+
+	- NAS（Network Attchaed storage），文件级别数据访问
+		- 网络附加存储
+			- 指连接到一个局域网的基于IP的文件共享设置
+			- CIFS
+			- NFS
+			- ftp
+
+
+
+	- SAN（Storage area network）-网络区域存储
+	-FC SAN（用FC协议搭建的SAN） 和 -IP SAN（用iSCSI协议搭建的SAN） 
+		- SAN连接协议（总线）
+			-FC
+			-iSCSI（四层协议），附图在文件目录中
+				-SCSI用户数据
+				-iSCSI层
+				-TCP层
+				-IP层
+			-FCOE
+			-光纤
+		- SAN组件
+			-主机
+			-存储设备
+			-交换机
+			
+
+
+## Centos 7 IP SAN实验
+#部署ISCSI存储(IP SAN)
+- 发起端（服务器）：服务器主机
+- 目标端（存储端）：存储设备/硬盘/raid设备/LVM
+
+- 准备环境：四块磁盘   创建RAID5
+##不用分区也行？之前坑我呗，道长
+[root@centos7 ~]# mdadm  -C /dev/md0 -n 3 -l 5 -x 1 /dev/sdb  /dev/sdc /dev/sdd /dev/sde
+mdadm: Defaulting to version 1.2 metadata
+mdadm: array /dev/md0 started.
+[root@centos7 ~]# mdadm -D /dev/md0						##查看磁盘阵列
+[root@centos7 ~]# mdadm --detail --scan --verbose >> /etc/mdadm.conf		##！！保存RAID配置 ！重要！
+
+##安装ISCSI target 服务程序
+[root@centos7 ~]# yum install targetd targetcli -y					##安装服务所需软件
+[root@centos7 ~]# systemctl restart target
+[root@centos7 ~]# systemctl enable target
+Created symlink from /etc/systemd/system/multi-user.target.wants/target.service to /usr/lib/systemd/system/target.service.
+[root@centos7 ~]# firewall-cmd --permanent --add-port=3260/tcp			##占用3260端口
+FirewallD is not running							##本次实验懒得搞，我直接关了，不关就设置允许3260通过
+[root@centos7 ~]# firewall-cmd --reload
+FirewallD is not running
+
+##创建存储对象，干活了
+首先查看客户端的iqn号，以便后面的权限访问管理，切到客户端
+[root@bobo ~]# cat /etc/iscsi/initiatorname.iscsi 
+InitiatorName=iqn.1994-05.com.redhat:bf0886c7767				##可修改（如果修改一定要重启服务systemctl restart iscsi），iqn号iqn.1994-05.com.redhat:bf0886c7767
+
+##服务端	
+[root@centos7 ~]# targetcli
+targetcli shell version 2.1.fb49
+Copyright 2011-2013 by Datera, Inc and others.
+For help on commands, type 'help'.
+
+/> /backstores/block create storage0 /dev/md0 					##neme=storage0,dev=/dev/md0,创建块级存储
+Created block storage object storage0 using /dev/md0.
+/> /iscsi create iqn.2020-3.com.example:storage0
+WWN not valid as: iqn, naa, eui							##报错，2020-3必须写成2020-03
+/> /iscsi create iqn.2020-03.com.example:storage0					##修改后正确， 配置ISCSI target目标
+Created target iqn.2020-03.com.example:storage0.
+Created TPG 1.
+Global pref auto_add_default_portal=true
+Created default portal listening on all IPs (0.0.0.0), port 3260.
+/> /iscsi/iqn.2020-03.com.example:storage0/tpg1/luns create /backstores/block/storage0 1	##创建lun设置编号为1
+Created LUN 1.
+/> /iscsi/iqn.2020-03.com.example:storage0/tpg1/portals create 192.168.8.87 3260
+Using default IP port 3260
+Could not create NetworkPortal in configFS					##3260端口有占用了
+/> cd iscsi/iqn.2020-03.com.example:storage0/tpg1/portals/
+/iscsi/iqn.20.../tpg1/portals> delete 0.0.0.0 3260					##删除3260端口
+Deleted network portal 0.0.0.0:3260
+/> /iscsi/iqn.2020-03.com.example:storage0/tpg1/portals create 192.168.8.87 3260		##再次创建网络访问地址和端口
+Using default IP port 3260			
+Created network portal 192.168.8.87:3260.					##成功
+/> /iscsi/iqn.2020-03.com.example:storage0/tpg1/acls create iqn.1994-05.com.redhat:bf0886c7767	##创建acl访问规则运行服务端访问
+Created Node ACL for iqn.1994-05.com.redhat:bf0886c7767
+Created mapped LUN 1.
+/> ls
+o- / ................................................................................................ [...]
+  o- backstores ..................................................................................... [...]
+  | o- block ......................................................................... [Storage Objects: 1]
+  | | o- storage0 ............................................... [/dev/md0 (40.0GiB) write-thru activated]
+  | |   o- alua .......................................................................... [ALUA Groups: 1]			##这两个好像是之前操作失误弄出来的
+  | |     o- default_tg_pt_gp .............................................. [ALUA state: Active/optimized]		##这两个好像是之前操作失误弄出来的
+  | o- fileio ........................................................................ [Storage Objects: 0]
+  | o- pscsi ......................................................................... [Storage Objects: 0]
+  | o- ramdisk ....................................................................... [Storage Objects: 0]
+  o- iscsi ................................................................................... [Targets: 1]
+  | o- iqn.2020-03.com.example:storage0 ......................................................... [TPGs: 1]
+  |   o- tpg1 ...................................................................... [no-gen-acls, no-auth]
+  |     o- acls ................................................................................. [ACLs: 1]
+  |     | o- iqn.1994-05.com.redhat:bf0886c7767 .......................................... [Mapped LUNs: 1]
+  |     |   o- mapped_lun1 ..................................................... [lun1 block/storage0 (rw)]
+  |     o- luns ................................................................................. [LUNs: 1]
+  |     | o- lun1 .......................................... [block/storage0 (/dev/md0) (default_tg_pt_gp)]
+  |     o- portals ........................................................................... [Portals: 1]
+  |       o- 192.168.8.87:3260 ....................................................................... [OK]
+  o- loopback ................................................................................ [Targets: 0]
+/> saveconfig								#保存配置
+Last 10 configs saved in /etc/target/backup/.
+Configuration saved to /etc/target/saveconfig.json
+/> exit									##退出
+Global pref auto_save_on_exit=true
+Last 10 configs saved in /etc/target/backup/.
+Configuration saved to /etc/target/saveconfig.json
+[root@centos7 ~]# systemctl restart target.service					##重启服务
+
+
+##客户端访问共享存储，客户端操作
+[root@client ~]# yum install iscsi-initiator-utils.i686 -y
+- 发现（discovery）
+[root@client ~]# iscsiadm --mode discoverydb --type sendtargets --portal 192.168.8.87 --discover	# 发现
+192.168.8.87:3260,1 iqn.2020-03.com.example:storage0	#成功，iqn.2020-03.com.example:storage0要作为接下来登录的iqn号
+- 登陆(login)
+[root@client ~]# iscsiadm --mode node --targetname iqn.2020-03.com.example:storage0 --portal 192.168.8.87:3260 --login
+Logging in to [iface: default, target: iqn.2020-03.com.example:storage0, portal: 192.168.8.87,3260] (multiple)
+Login to [iface: default, target: iqn.2020-03.com.example:storage0, portal: 192.168.8.87,3260] successful.		#成功
+- 分区（fdisk）
+[root@client ~]# fdisk /dev/sdb		##其实就是按下n，一路回车，创建一个分区，空间都给，p查看一下成功没，w退出即可
+Welcome to fdisk (util-linux 2.23.2).
+
+Changes will remain in memory only, until you decide to write them.
+Be careful before using the write command.
+
+Device does not contain a recognized partition table
+Building a new DOS disklabel with disk identifier 0xfdca4ed3.
+
+Command (m for help): n
+Partition type:
+   p   primary (0 primary, 0 extended, 4 free)
+   e   extended
+Select (default p): 
+Using default response p
+Partition number (1-4, default 1): 
+First sector (2048-83816447, default 2048): 
+Using default value 2048
+Last sector, +sectors or +size{K,M,G} (2048-83816447, default 83816447): 
+Using default value 83816447
+Partition 1 of type Linux and of size 40 GiB is set
+
+Command (m for help): p
+
+Disk /dev/sdb: 42.9 GB, 42914021376 bytes, 83816448 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 524288 bytes / 1048576 bytes
+Disk label type: dos
+Disk identifier: 0xfdca4ed3
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sdb1            2048    83816447    41907200   83  Linux
+
+Command (m for help): w
+The partition table has been altered!
+
+Calling ioctl() to re-read partition table.
+Syncing disks.
+
+- 格式化（mkfs，创建文件系统）
+[root@client ~]# mkfs -t ext4 /dev/sdb1
+
+- 挂载（mount）
+[root@client ~]# mkdir /mnt/storage0
+[root@client ~]# mount /dev/sdb1 /mnt/storage0/
+[root@client ~]# df -hT			##查看
+或永久挂载
+[root@client ~]# blkid
+/dev/sda1: UUID="93b9a2d9-1928-419b-93c5-961840e0dbb6" TYPE="ext4" 
+/dev/sda2: UUID="b84b74c9-ae9a-4a97-9e34-29a228f4e2c4" TYPE="ext4" 
+/dev/sda3: UUID="d5a0f113-3e0d-4f2d-8636-5c0cc7d56ea0" TYPE="swap" 
+/dev/sr0: UUID="2019-09-11-18-50-31-00" LABEL="CentOS 7 x86_64" TYPE="iso9660" PTTYPE="dos" 
+/dev/sdb1: UUID="09088205-d20f-4af3-a817-5546a9c23175" TYPE="ext4" 			##获取硬盘uuid号
+
+vim /etc/fstab
+UUID=09088205-d20f-4af3-a817-5546a9c23175 /mnt/storage0           ext4    defaults,_netdev        0 0	##添加这一行
+
+##此刻客户端就可以用服务端的磁盘了（写文件在客户端，但是文件在服务端的磁盘，windows也可用，iSCSI发起程序：win+r->管理工具(小图标)->iSCSI发起程序）
+- 注意：不会用- man iscsiadm找/example
+
+
+
+
+###没试过
+## RHEL6 操作
+	准备磁盘
+	安装服务端软件
+		yum install scsi-* -y
+	修改配置文件
+		vim /etc/tgt/targets.conf
+			<target iqn.2018-12.com.example:serve0:disk>
+			    backing-store /dev/sdb1
+			    initiator-address 192.168.0.0/24
+			</target>
+
+	重启服务
+		[root@rhel6 Desktop]# service tgtd restart
+		[root@rhel6 Desktop]# chkconfig tgtd on
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

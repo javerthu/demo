@@ -1,0 +1,125 @@
+## 账户管理
+	- 该操作为DBA最基础操作
+	- 账户管理主要包括创建用户，删除用户，密码管理权限管理等内容
+	- 通过账户管理可以保证数据的安全性
+
+
+## 创建普通用户
+	- CREATE USER语句创建新的用户
+	- 还可以直接在mysql.user中添加用户
+	- 还可以使用GRANT语句创建用户
+
+	- 用CREATE USER创建
+		| %           | test_1 |		（CREATE USER创建默认所以网段可连接）
+		- 使用CREATE USER语句创建新用户时必须拥有CREATE USER的权限
+		- CREATE USER user  [IDENTIFINED BY [PASSWORD] 'password']
+			- user  代表新建用户的账户
+			- password为密码
+		- CREATE USER test_1 IDENTIFIED BY '123456';
+		- select host,user,password from mysql.user;
+
+
+	- 用INSERT语句创建普通用户（创建完需要FLUSH PRIVILEGES;生效，）
+		| localhost   | test_2 | 		（INSERT语句创建默认本地可连接）
+		- INSERT INTO mysql.user(Host,User,Password) VALUES('hostname','username',PASSWORD('password'));
+			- PASSWORD()函数用来给密码加密
+		- INSERT INTO mysql.user(Host,User,Password) VALUES('localhost','test_2',PASSWORD('123123'));（为啥不能登录，是不是要FLUSH？，果然需要FLUSH PRIVILEGES;）
+	- GRANT语句创建
+		- GRANT priv_type  ON  databases.table TO user [IDENTIFIED BY 'password'];
+			- priv_type：表示新用户的权限			#SELECT	（查找权限）
+			- databases.table：表示新用户权限范围，指定数据库和表	#*.*（所有数据库.所有表）
+			- user 表示新用户的账户，用户和主机名组成	#'test_3'@'localhost'（用户名@可登录网段）
+			- by后面为密码		#'123456'		#用户密码
+		- GRANT SELECT ON *.* TO 'test_3'@'localhost' IDENTIFIED BY '123456';
+
+
+
+## 删除用户
+	- 使用DROP USER语句删除普通用户
+		- DROP USER user
+			- DROP USER 'test_1';		##登录为全网段的可以这样删除
+			- DROP USER 'test_2'@'localhost';	##但是test_2为啥必须加@'localhost'，奇怪奇怪真奇怪
+	- 用DELETE语句删除普通用户
+		- DELETE FROM mysql.user WHERE Host='hostname' AND User='username';
+
+		- DELETE FROM mysql.user WHERE Host='localhost' AND User='test_3';	#需要两个where条件，不然条件不唯一
+		- FLUSH PRIVILEGES;
+
+
+
+
+## root用户修改普通用户密码
+	- 使用SET语句修改普通用户密码
+		- SET PASSWORD FOR 'username'@'hostname'=PASSWORD('new_password');
+			- username:普通用户
+			- hostname：普通用户主机名
+		- SET PASSWORD FOR 'test_1'@'%'=PASSWORD('redhat');
+	- 修改mysql数据库下的user表
+		- UPDATE更新语句
+		- UPDATE mysql.user SET Password=PASSWORD('new_password') WHERE User='username' AND Host='hostname';
+
+		- UPDATE mysql.user SET Password=PASSWORD('redhat') WHERE User='test_2' AND Host='localhost';
+	- 用GRANT语句修改
+		- GRANT priv_type ON databases.table TO user [IDENTIDIED BY [PASSWORD] 'new_password'];
+
+		- GRANT SELECT ON *.* TO 'test_3'@'localhost' IDENTIFIED BY 'redhat';
+
+
+## 普通用户修改密码
+	- SET PASSWORD=PASSWORD('新密码')
+	- GRANT ALL PRIVILEGES ON *.* TO 'test_4'@'localhost' IDENTIFIED BY 'redhat' WITH GRANT OPTION;		#ALL所有权限
+	- FLUSH PRIVILEGES;
+
+	- mysql -u test_4 -p123456
+	- SET PASSWORD=PASSWORD('redhat');
+	- mysql -u test_4 -p123456
+	- mysql -u test_4 -predhat
+
+
+
+## 权限管理
+	
+	- 授权
+		- 授权是指为某个用户赋予某些权限
+	- 授权语句GRANT
+		- GRANT priv_type [(column_list)]  ON user [IDENTIFIED BY [PASSWORD] 'PASSWORD'] [WITH with_option [with_option]]
+			- priv_type:代表权限的类型
+			- column_list：权限作用于哪些列，不写代表整个表
+			- user：'username'@'hostname'
+			- IDENTIFIED BY [PASSWORD] 'PASSWORD':设置密码
+			- WITH关键字后面带有一个或多个with_option选项
+				- GRANT OPTION：被授权的用户可以将这些权限赋予别的用户
+				- 欠着
+
+
+	- 练习
+		- 使用GRANT命令创建一个新的用户test_5。对所有数据库SELECT和UPDATE权限，免密为123456，并加上 WITH GRANT OPTION子句
+
+		-  GRANT SELECT,UPDATE ON *.* TO 'test_5'@'%' IDENTIFIED BY '123456' WITH GRANT OPTION;
+		-  SELECT Host,User,Password,Select_priv,Update_priv,Grant_priv FROM mysql.user WHERE user='test_5'\G;
+
+
+
+
+
+## 权限的回收
+	- 取消某个用户的权限
+	- REVOKE语句收回权限
+	- REVOKE priv_type [(column_list)] ON databases.table FROM user
+		- priv-type:代表权限类型
+		- columns_list：代表权限作用那些列，没有就整个表
+		- user：'username'@'hostname'
+	- 收回所有权限
+		- REVOKE ALL PRIVILEGES,GRANT OPTION FROM user…………
+
+	- 收回test_5的UPDATE权限
+		- REVOKE UPDATE ON *.* FROM 'test_5'@'%';
+		- SELECT Host,User,Password,Select_priv,Update_priv,Grant_priv FROM mysql.user WHERE user='test_5'\G;
+	- 收回test_4的所有权限
+		- REVOKE ALL PRIVILEGES,GRANT OPTION FROM 'test_4'@'localhost';
+		- SELECT Host,User,Password,Select_priv,Update_priv,Grant_priv FROM mysql.user WHERE user='test_4'\G;
+
+
+## 查看权限
+	 - SELECT * from mysql.user\G
+	 - SHOW GRANTS FOR 'root'@'%'\G

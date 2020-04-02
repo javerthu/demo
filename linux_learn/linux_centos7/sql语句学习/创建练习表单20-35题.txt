@@ -1,0 +1,248 @@
+-- 21、查询不同老师所教不同课程平均分从高到低显示
+-- SELECT te.t_name,AVG(sc.s_score)
+-- FROM teacher te
+-- LEFT JOIN course co ON te.t_id=co.t_id 
+-- LEFT JOIN score sc ON co.c_id=sc.c_id
+-- GROUP BY te.t_id
+-- ORDER BY AVG(sc.s_score) DESC;
+--   不能直接在SELECT写 course.c_name不知道为什么
+-- SELECT te.t_id,te.t_name,
+-- (select c_name from course where t_id=te.t_id ) "科目",
+-- AVG(sc.s_score)
+-- FROM teacher te
+-- LEFT JOIN course co ON te.t_id=co.t_id 
+-- LEFT JOIN score sc ON co.c_id=sc.c_id
+-- GROUP BY te.t_id
+-- ORDER BY AVG(sc.s_score) DESC 
+-- ;
+
+-- 22、查询所有课程的成绩第2名到第3名的学生信息及该课程成绩
+-- 选出01课程第二名到第三名
+-- SELECT st.s_name,co.c_name,sc.s_score FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id LEFT JOIN course co ON co.c_id=sc.c_id
+-- WHERE co.c_id='01'
+-- ORDER BY sc.s_score DESC;
+-- -- 上面选择第二到第三名
+-- SELECT st.s_name,co.c_name,sc.s_score FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id LEFT JOIN course co ON co.c_id=sc.c_id
+-- WHERE co.c_id='01'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 1,2;
+-- 
+-- SELECT a.* FROM (
+-- SELECT st.s_name,co.c_name,sc.s_score FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id LEFT JOIN course co ON co.c_id=sc.c_id
+-- WHERE co.c_id='01'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 1,2) a
+-- UNION all
+-- SELECT b.* FROM (
+-- SELECT st.s_name,co.c_name,sc.s_score FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id LEFT JOIN course co ON co.c_id=sc.c_id
+-- WHERE co.c_id='02'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 1,2) b
+-- UNION all
+-- SELECT c.* FROM (
+-- SELECT st.s_name,co.c_name,sc.s_score FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id LEFT JOIN course co ON co.c_id=sc.c_id
+-- WHERE co.c_id='03'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 1,2) c;
+
+-- 23、统计各科成绩各分数段人数：课程编号,课程名称,[100-85],[85-70],[70-60],[0-60]及所占百分比
+-- 选出01课程的相关指标
+-- SELECT a.* FROM (
+-- SELECT co.c_id,co.c_name,COUNT(*),
+-- ((select count(s_id) from score where s_score>=85 and  s_score<100 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[100-85]",
+-- ((select count(s_id) from score where s_score>=70 and  s_score<85 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[85-70]",
+-- ((select count(s_id) from score where s_score>=60 and  s_score<70 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[70-60]",
+-- ((select count(s_id) from score where s_score>=0 and  s_score<60 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[0-60]"
+-- FROM course co LEFT JOIN score sc ON co.c_id=sc.c_id
+-- WHERE co.c_id='01'
+-- ORDER BY sc.s_score DESC ) a
+-- UNION ALL
+-- SELECT b.* FROM (
+-- SELECT co.c_id,co.c_name,COUNT(*),
+-- ((select count(s_id) from score where s_score>=85 and  s_score<100 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[100-85]",
+-- ((select count(s_id) from score where s_score>=70 and  s_score<85 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[85-70]",
+-- ((select count(s_id) from score where s_score>=60 and  s_score<70 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[70-60]",
+-- ((select count(s_id) from score where s_score>=0 and  s_score<60 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[0-60]"
+-- FROM course co LEFT JOIN score sc ON co.c_id=sc.c_id
+-- WHERE co.c_id='02'
+-- ORDER BY sc.s_score DESC ) b
+-- UNION ALL
+-- SELECT c.* FROM (
+-- SELECT co.c_id,co.c_name,COUNT(*),
+-- ((select count(s_id) from score where s_score>=85 and  s_score<100 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[100-85]",
+-- ((select count(s_id) from score where s_score>=70 and  s_score<85 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[85-70]",
+-- ((select count(s_id) from score where s_score>=60 and  s_score<70 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[70-60]",
+-- ((select count(s_id) from score where s_score>=0 and  s_score<60 and c_id=co.c_id )/(select count(s_id) from score where c_id=co.c_id)) "[0-60]"
+-- FROM course co LEFT JOIN score sc ON co.c_id=sc.c_id
+-- WHERE co.c_id='03'
+-- ORDER BY sc.s_score DESC ) c
+-- ;
+-- 
+-- select c.c_id,c.c_name
+-- ,((select count(1) from score sc where sc.c_id=c.c_id and sc.s_score<=100 and sc.s_score>80)/(select count(1) from score sc where sc.c_id=c.c_id )) "100-85"
+-- ,((select count(1) from score sc where sc.c_id=c.c_id and sc.s_score<=85 and sc.s_score>70)/(select count(1) from score sc where sc.c_id=c.c_id )) "85-70"
+-- ,((select count(1) from score sc where sc.c_id=c.c_id and sc.s_score<=70 and sc.s_score>60)/(select count(1) from score sc where sc.c_id=c.c_id )) "70-60"
+-- ,((select count(1) from score sc where sc.c_id=c.c_id and sc.s_score<=60 and sc.s_score>=0)/(select count(1) from score sc where sc.c_id=c.c_id )) "60-0"
+-- ,(select count(1) from score sc where sc.c_id=c.c_id ) "总人数"
+-- from course c order by c.c_id 
+-- ;
+
+-- 24、查询学生平均成绩及其名次
+-- set @i=0;
+-- select a.*,@i:=@i+1 from (
+-- SELECT st.*,AVG(sc.s_score) 
+-- FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id
+-- GROUP BY st.s_id
+-- ORDER BY AVG(sc.s_score) DESC ) a
+-- ;
+
+-- 25、查询各科成绩前三名的记录
+-- SELECT a.* FROM (
+-- SELECT st.s_name,co.c_name,sc.s_score FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id LEFT JOIN course co ON co.c_id=sc.c_id
+-- WHERE co.c_id='01'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 3) a
+-- UNION all
+-- SELECT b.* FROM (
+-- SELECT st.s_name,co.c_name,sc.s_score FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id LEFT JOIN course co ON co.c_id=sc.c_id
+-- WHERE co.c_id='02'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 3) b
+-- UNION all
+-- SELECT c.* FROM (
+-- SELECT st.s_name,co.c_name,sc.s_score FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id LEFT JOIN course co ON co.c_id=sc.c_id
+-- WHERE co.c_id='03'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 3) c
+-- ;
+
+-- 26、查询每门课程被选修的学生数
+-- SELECT co.c_name
+-- ,(SELECT count(*) FROM score WHERE c_id=co.c_id) '选课人数'
+-- FROM course co
+-- ;
+-- -- 文档给出的答案不对，java明明没人，这结果却给了1
+-- select c.c_id,c.c_name,count(*) from course c 
+-- left join score sc on sc.c_id=c.c_id
+-- inner join student st on st.s_id=c.c_id
+-- group by st.s_id
+-- ;
+
+-- 27、查询出只有两门课程的全部学生的学号和姓名
+-- 查出所有学生和选得课程数
+-- SELECT st.s_name
+-- ,(SELECT count(*) FROM score WHERE s_id=st.s_id ) 
+-- FROM student st
+-- ;
+-- 
+-- SELECT st.*,count(sc.s_id)
+-- FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id
+-- GROUP BY st.s_id
+-- HAVING count(sc.s_id)=2
+-- ;
+-- 
+-- select st.s_id,st.s_name from student st 
+-- left join score sc on sc.s_id=st.s_id
+-- inner join course c on c.c_id=sc.c_id 
+-- group by st.s_id having count(1)=2
+-- 
+
+-- 28、查询学生男生、女生人数
+-- SELECT COUNT(*) '男生'
+-- FROM student st
+-- WHERE st.s_sex='男'
+-- GROUP BY st.s_sex
+-- ;
+-- 
+-- SELECT (SELECT COUNT(*) FROM student WHERE s_sex='男' ) '男生'
+-- ,(SELECT COUNT(*) FROM student WHERE s_sex='女' ) '女生'
+-- ;
+-- 
+-- select st.s_sex,count(1) 
+-- from student st 
+-- group by st.s_sex
+-- ;
+
+-- 29、查询名字中含有"风"字的学生信息
+-- SELECT * 
+-- FROM student st
+-- WHERE st.s_name LIKE '%风%'
+-- ;
+-- 
+-- select st.* from student st where st.s_name like "%风%";
+
+-- 30、查询同名同性学生名单，并统计同名人数
+-- select st.s_name,count(st.s_name) 
+-- from student st 
+-- group by st.s_name
+-- HAVING count(st.s_name)>1
+-- ;
+-- 
+-- select st.s_name,count(1) 
+-- from student st 
+-- group by st.s_name having count(1)>1
+-- ;
+
+-- 31、查询1990年出生的学生名单
+-- SELECT * 
+-- FROM student st
+-- WHERE st.s_birth LIKE '1990%'
+-- ;
+-- 
+-- select st.* from student st where st.s_birth like "1990%";
+
+-- 32、查询每门课程的平均成绩，结果按平均成绩降序排列，平均成绩相同时，按课程编号升序排列
+-- SELECT co.c_name
+-- ,(SELECT AVG(s_score) FROM score WHERE c_id=co.c_id  ) '课程平均成绩'
+-- FROM course co
+-- GROUP BY co.c_id
+-- ORDER BY (SELECT AVG(s_score) FROM score WHERE c_id=co.c_id  ) DESC ,co.c_id ASC
+-- ; 
+-- 
+-- select c.c_id,c.c_name,avg(sc.s_score) from course c
+-- inner join score sc on sc.c_id=c.c_id  
+-- group by c.c_id order by avg(sc.s_score) desc,c.c_id asc
+-- 
+
+-- 33、查询平均成绩大于等于85的所有学生的学号、姓名和平均成绩
+-- 查询所有学生平均成绩
+-- SELECT st.s_name,AVG(sc.s_score)
+-- FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id
+-- GROUP BY st.s_id
+-- ;
+-- 
+-- SELECT st.s_name,AVG(sc.s_score)
+-- FROM student st LEFT JOIN score sc ON st.s_id=sc.s_id
+-- GROUP BY st.s_id
+-- HAVING AVG(sc.s_score) > 85
+-- ;
+
+-- 34、查询课程名称为"数学"，且分数低于60的学生姓名和分数
+-- SELECT st.s_name,co.c_name,sc.s_score
+-- FROM student st INNER JOIN score sc ON st.s_id=sc.s_id
+-- INNER JOIN course co ON sc.c_id=co.c_id AND co.c_name='数学'
+-- WHERE sc.s_score < 60
+-- ;
+-- 
+-- select st.s_id,st.s_name,sc.s_score from student st
+-- inner join score sc on sc.s_id=st.s_id and sc.s_score<60
+-- inner join course c on c.c_id=sc.c_id and c.c_name ="数学" 
+-- ;
+
+-- 35、查询所有学生的课程及分数情况；
+-- select st.s_id,st.s_name,c.c_name,sc.s_score from student st
+-- left join score sc on sc.s_id=st.s_id
+-- left join course c on c.c_id =sc.c_id
+-- order by st.s_id,c.c_name
+-- ;
+-- 
+
+
+
+
+
+
+
+
+
+

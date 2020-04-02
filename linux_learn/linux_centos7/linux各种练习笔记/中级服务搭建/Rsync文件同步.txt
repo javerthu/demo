@@ -1,0 +1,189 @@
+# Rsync文件同步Rsync（remote sync）
+	- 是unix或者类unix操作系统之间一款数据镜像备份软件
+	- 差异备份（通过差异日志，只备份改动的数据）
+	- ssh安全隧道进行数据加密
+	- 873 TCP
+
+## 搭建rsync服务器
+##服务端
+[root@server ~]# yum install rsync -y
+- rsync主要分为三个配置文件
+	- /etc/rsyncd.conf 	主配置文件
+	- rsyncd.secrets  	密码文件
+	- rsync.motd	服务信息文件
+
+[root@server ~]# mkdir /common			##创建共享目录
+[root@server ~]# echo "hahadaxian" > /common/test11.txt
+[root@server ~]# cat /common/test11.txt 
+hahadaxian
+
+[root@server ~]# vim /etc/rsyncd.conf 			##修改主配置文件
+[root@server ~]# cat /etc/rsyncd.conf 
+# /etc/rsyncd: configuration file for rsync daemon mode
+
+# See rsyncd.conf man page for more options.
+
+motd file = /etc/rsyncd.moted				#设置服务器信息提示文件名称，在该文件中编写提示信息
+transfer logging = yes				#开启rsync数据传输日志功能
+log file = /var/run/rsyncd.log				#设置日志文件名称，log format
+pid file = /var/run/rsyncd.pid				#设置rsync进程号保存文件名称
+lock file = /var/run/rsyncd.lock				#设置锁文件名称
+port 873						#设置侦听端口号
+address = 192.168.8.87				#设置侦听地址（你自己服务网卡的地址）
+uid = nobody					#设置进行数据传输时所用的账户名称和ID号
+gid = nobody					#设置进行数据传输时所用的账户名称和ID号
+use chroot = no					#一般设为no，（使用root权限访问啥的把？）
+read only = yes					#是否允许客户端可写
+max connections = 10				#最大并发连接数，0代表无限制
+[common]
+	comment = Web content			#描述说明（随便写）
+	path = /common				#同步文件路径
+	ignore errors				#忽略一些IO参数
+	auth users = tom,jerry			#认证用户（不需要真实存在）
+	secrets file = /etc/rsyncd.secrets		#密码文件
+	hosts allow = 192.168.8.0/255.255.255.0		#允许访问的地址段（也可是单个主机）
+	hosts deny = *				#拒绝的地址段，除hostsallow
+	list = false					#客户端请求显示模块列表时，本模块名称是否显示，默认为true
+
+##设置密码文件/etc/rsyncd.secrets
+[root@server ~]# echo "tom:pass" > /etc/rsyncd.secrets	#账户:密码写到指定密码文件/etc/rsyncd.secrets，一个用户一行
+[root@server ~]# echo "jerry:666666" >> /etc/rsyncd.secrets	#别用>覆盖写，用>>追加写
+[root@server ~]# chmod 600 /etc/rsyncd.secrets		#修改下密码文件权限
+
+#写入提示信息
+[root@server ~]# echo "Welcome to access" > /etc/rsyncd.motd	#写入提示信息到指定的/etc/rsyncd.motd提示文件中
+# 防火情允许端口通过（也可关闭做实验嘛）
+[root@server ~]# firewall-cmd --permanent --add-port=873/tcp
+[root@server ~]# firewall-cmd --reload
+
+# 开启服务
+[root@server ~]# rsync --daemon				#开启rsync服务，重启也是这个命令
+[root@server ~]# echo "/usr/bin/rsync --daemon" >> /etc/rc.local	#设置开机自启
+
+
+##客户端操作
+[root@client ~]# yum install rsync -y
+[root@client /]# mkdir /common				#创建挂载目录（名字可不一样）
+[root@client /]# rsync -vzrtopg --progress tom@192.168.8.87::common /common	#连接同步，下面有参数说明
+
+Password: 						#输入tom密码
+receiving incremental file list
+./
+test11.txt
+             11 100%   10.74kB/s    0:00:00 (xfr#1, to-chk=0/2)
+
+sent 46 bytes  received 121 bytes  25.69 bytes/sec
+total size is 11  speedup is 0.07
+[root@client /]# cd /common/
+[root@client common]# ls
+test11.txt							##可以发现test11.txt文件过来了
+
+此时客户端创建的文件无法同步到服务端，服务端创建的文件可以同步的客户端，切回服务端
+[root@server ~]# cd /common/
+[root@server common]# ls
+test11.txt
+[root@server common]# mkdir haha
+[root@server common]# ls
+haha  test11.txt
+
+#切回客户端
+[root@client common]# rsync -vzrtopg --progress tom@192.168.8.87::common /common	#再执行一遍
+
+Password: 
+receiving incremental file list
+./
+haha/									#此时客户端创建的haha目录同步过来
+
+sent 31 bytes  received 109 bytes  56.00 bytes/sec
+total size is 11  speedup is 0.08
+[root@client common]# ls
+haha  test11.txt								#成功
+
+
+
+## rsync命令描述与使用
+一个快速，多功能的远程(或本地)数据复制工具（差异备份，断点续传）
+	- SRC
+		- 表示源路径
+	- DEST
+		- 表示目标路径
+	- 本地复制
+		- rsync [选项] SRC ...[DEST]
+		- scp -r SRC...[DEST]
+	- 通过远程shell复制（一个：代表shell复制）
+		- 下载数据
+			- rsync [选项] [user@]HOST:SRC ... [DEST]	（不写user默认当前用户）#把目标路径的数据放到本地
+		- 上传数据
+			- rsync [选项] ...[user@]HOST:DEST	#把本地的数据放到目标路径
+	- 通过rsync进程复制（两个：代表进程复制）
+		- 下载数据
+			- rsync [选项] [USER@]HOST::SRC ...[DEST]		##::代表进程复制
+			- rsync [选项] rsync://[USER@]HOST[:PORT]/SRC ...[DEST]
+		- 上传数据
+			- rsync [选项] SRC ...[USER@]HOST::DEST
+			- rsync [选项] SRC...rsync://[USER@]HOST[:PORT]/DEST.
+
+	- 选项(man rsync)
+		1. -v, --verbose		显示详细信息
+		2. -q, --quiet		静默模式，无错误信息
+		3. -a, --archive		归档模式，主要保留文件属性，等同于-rlptgoD
+		4. -r, --recursive		递归
+		5. -b, --backup		如果目标路径存在同名文件，将旧的文件重命名为~filename,可以使用--suffix指定不同的备份前缀
+		6. --backup-dir=DIR  	将备份文件保存指定目录
+		7. --suffix=SUFFIX		指定备份前缀
+		8. -u, --update		如果目标中的文件比将要下载的文件新，则不执行同步
+		9. -l, --links		保留符号连接
+		10. -p, --perms		保留文件权限属性
+		11. -H, --hard-links		保留硬连接
+		12. -z，--compress		传输过程中对数据进行压缩
+		13. -t, --times，		保留修改时间属性
+		14.-g, --group
+
+
+		 -v z r t o p g --progress
+-v, --verbose	increase verbosity				显示详细信息
+-z, --compress      	compress file data during the transfer		传输过程中对数据进行压缩
+-r, --recursive        	recurse into directories			递归
+-t, --times            	preserve modification times			保留修改时间属性
+-o, --owner          	preserve owner (super-user only)		保留属主信息
+-p, --perms          	preserve permissions				保留文件权限属性
+-g, --group            	preserve group				保留属组信息
+--progress            	show progress during transfer			展示过程在传输过程中
+-P                          	same as --partial --progress			和--partial --progress一样
+ -a, --archive	归档模式，主要保留文件属性，等同于-rlptgoD
+
+
+
+	- 举例
+		- 将本机当前目录下以.cfg结尾的文件复制到client主机下的scr目录下
+			- rsync -t *.cfg 192.168.8.70:src/		#以当期用户登录（走ssh通道），client地址可改
+		- 从server主机递归方式将/mnt/cdrom目录下的所有内容复制到本机的/data/tmp目录下，但在/data/tmp目录下不会创建cdrom目录
+			- rsync -avz /mnt/cdrom /data/tmp			（本地执行拷贝）
+			- rsync -avz 192.168.8.87:/mnt/cdrom /data/tmp		（客户端执行）#shell操作，就是正常的ssh认证用户密码
+		- 使用tom用户远程连接192.168.8.87主机的rsync进程，将common模块定义的path路径下载至本地/test目录
+			- rsync -avz tom@192.168.0.10::common /test		#进程操作，可用 /etc/rsyncd.secrets中的用户密码
+		- 匿名下载192.168.0.10服务器的common模块至/test1目录		#也没成功，预留
+			- rsync -avz 192.168.0.10::common /test1
+		- 显示192.168.0.10服务器所有模块名称				#先将服务端/etc/rsyncd.conf 配置文件中的list改为ture才能看到
+			- rsync --list-onlty tom@192.168.0.10::			
+		- 客户端每次连接都需要输入密码信息显的非常麻烦，可以将密码文件放置在rsync.pass，使用rsync命令--password-file参数指定密码文件
+			- 预留
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

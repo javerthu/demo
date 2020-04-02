@@ -1,0 +1,402 @@
+# FTP服务器
+	- 文件传输协议
+	- FTP共享是基于TCP/IP协议
+	- C/S
+	- FTP服务器共享安装文件目录来执行
+	- FTP只支持TCP不支持UDP
+	- 俩个端口：一个数据端口一个控制端口(命令端口)
+
+## FTP服务端口
+	- 21端口：命令端口，用于接受客户端执行的FTP命令
+	- 20端口：数据传输，用于上传下载文件数据
+	- 由于FTP工作方式不同，数据段不一定一直是20
+	- 分为主动FTP与被动FTP
+
+## FTP数据传输类型
+	- 主动模式(Standard/Active)：FTP服务端主动向FTP客户端发起连接请求
+	- 被动模式(Pasive/PASV)：FTP服务端等待FTP客户端发起连接请求
+
+## 主动模式
+	主动的连接方式的FTP客户端从一个任意的非特权端口N(高位端口N>1024)连接到FTP服务端的命令端口21，
+	然后客户端开始监听N+1,并发送FTP命令“port N+1”到FTP服务器，
+	接着服务器会从自己的数据端口20连接到客户端指定的数据端口(N+1)
+	主动模式下，服务器开启的是20和21俩个端口，客户端连接的是大于1024的高位端口
+	####自己总结
+	主动模式就是，服务端向客户端发送数据连接请求，如果客户端同意（客户端会从一个大于1024的端口N->向服务端的21端口发起连接请求）
+	此时客户端会监听N+1的端口，服务端会把数据从自己的20端口传输至客户端的N+1端口。提交的是post命令
+
+## 被动模式
+	由客户端主动发起，当开启一个FTP连接时，客户端打开俩个任意的非特权端口(N>1024,N=1)
+	第一个端口会连接服务端的21号端口，但与主动模式不相同的是，客户端不会发起post命令，而是提交的是PASV命令，
+	此时服务器会开启一个任意的高位端口，并发送，命令PORT P发送给客户端
+	客户端从本地端口N+1连接到服务器额P端口用来传输数据
+	数据段不在是20，为任意高位端口
+	####自己总结
+	客户端向服务端发起连接请求，打开两个高于1024的N和N+1端口（PASV命令），N端口连接服务端的21端口。服务端的21端口发送一个大于1024的M端口给客户端（post命令）
+	客户端的N+1端口连接M端口，进行数据传输。此时数据段不在是20，为任意高位端口（大于1024的端口）。
+	
+
+	- 主动模式从服务器想客户端发起连接诶，被动模式客户端向服务端发起请求
+	- 俩者都是21端口进行用户验证管理
+	- 差别在于数据端口方式不同
+
+
+## FTP服务器的实现
+/etc/vsftpd/vsftpd.conf
+	FTP服务端软件vsftp，proftpd，wuftpd，puireftpd
+	vsftp使用最多，小巧轻快，安全易用，本次就是实现vsftp。
+#####服务端
+[root@server ~]# yum install vsftpd-sysvinit.x86_64 -y
+[root@server ~]# rpm -qa |grep vsftpd
+vsftpd-sysvinit-3.0.2-25.el7.x86_64
+vsftpd-3.0.2-25.el7.x86_64
+
+[root@server ~]# setenforce 0		#########临时关闭selinux
+[root@server ~]# firewall-cmd --permanent --add-service=ftp
+success
+[root@server ~]# firewall-cmd --reload 
+success
+[root@server ~]# systemctl restart vsftpd
+[root@server ~]# systemctl enable vsftpd
+
+
+## 配置文件
+	- /etc/vsftpd/vsftpd.conf
+[root@server ~]# cd /etc/vsftpd/
+[root@server vsftpd]# ls
+ftpusers  user_list  vsftpd.conf  vsftpd_conf_migrate.sh
+[root@server vsftpd]# cp vsftpd.conf vsftpd.conf.bak
+[root@server vsftpd]# ls
+ftpusers  user_list  vsftpd.conf  vsftpd.conf.bak  vsftpd_conf_migrate.sh
+
+[root@server vsftpd]# grep -v ^# /etc/vsftpd/vsftpd.conf.bak > /etc/vsftpd/vsftpd.conf	####把#开头的注释行去掉
+[root@server vsftpd]# vim vsftpd.conf			###下面就是筛选后的结果
+anonymous_enable=YES				#是否允许匿名用户访问
+local_enable=YES					#是否允许本地用户访问
+write_enable=YES					#是否允许写
+local_umask=022					#本地用户上传文件的umask值
+dirmessage_enable=YES				#用户进入目录是否显示消息
+xferlog_enable=YES					#是否开启xferlog日志功能
+connect_from_port_20=YES				#使用主动模式连接，是否启动20端口
+xferlog_std_format=YES				#xferlog日志文件格式			
+listen=NO						#是否监听端口，独立运行守护进程，可以加：listen_port=21，监听端口，默认是21
+listen_ipv6=YES
+
+pam_service_name=vsftpd
+userlist_enable=YES					#是否启用userlist用户列表
+tcp_wrappers=YES					#是否启用tcp_wrappers
+
+###上面是原本的配置信息，下面给出一些可附加选项
+pasv_enable=YES					#是否启用被动模式连接，默认为被动模式
+pasv_max_port=24600				#被动模式连接的最大端口号
+pasv_min_port=24500				#被动模式连接的最小端口号
+userlist_deny=YES					#是否禁止userlist文件中的账户访问FTP
+max_clients=2000					#最大允许2000个客户端连接，0为无限制
+max_per_ip=0					#每个客户端最大连接限制，0为无限制
+
+guest_enable=YES     				#如果为YES，则所有非匿名登录都映射为guest_username指定的账户
+guest_usernam=ftp				#设定来宾账户
+user_config_dir=/etc/vsftpd/conf			#指定目录，在该目录下可以为用户设置独立的配置文件与选项
+dual_log_enable=YES				#是否启用双日志功能，生成两个日志文件
+anonymous_enable=YES     				#允许匿名用户访问，默认开启
+
+anon_root=/var/ftp				#匿名用户访问FTP的跟路径，默认为/var/ftp
+anon_upload_enable=YES				#允许匿名用户上传，默认禁止
+anon_mkdir_write_enable=YES			#允许匿名用户创建目录，默认禁止
+anon_other_write_enable=YES			#允许匿名用户修改和删除目录等写操作，默认禁止
+anon_max_rate=0					#匿名数据传输率（B/s）
+anon_umask=077					#匿名用户上传文件掩码
+
+local_enable=YES     				#是否启用本机账户FTP功能
+local_max_rate=0					#本地账户数据传输率（B/s）
+local_umask=077					#本地用户上传文件掩码
+chroot_local_user=YES				#是否禁锢本地账户根目录，默认为NO
+local_root=/ftp/common				#本地账户访问FTP根路径
+
+
+####配置匿名FTP服务
+1. 将默认的目录赋予用户ftp权限以便上传
+- [root@server vsftpd]# chown ftp /var/ftp/pub/
+
+修改配置文件
+[root@server vsftpd]# vim vsftpd.conf			
+anonymous_enable=YES				#是否允许匿名用户访问
+
+anon_upload_enable=YES				##这是添加的四行
+anon_umask=022                
+anon_mkdir_write_enable=YES             
+anon_other_write_enable=YES   
+
+local_enable=YES					#是否允许本地用户访问
+write_enable=YES					#是否允许写
+local_umask=022					#本地用户上传文件的umask值
+dirmessage_enable=YES				#用户进入目录是否显示消息
+xferlog_enable=YES				#是否开启xferlog日志功能
+connect_from_port_20=YES				#使用主动模式连接，是否启动20端口
+xferlog_std_format=YES				#xferlog日志文件格式			
+listen=YES					#是否监听端口，独立运行守护进程，可以加：listen_port=21，监听端口，默认是21（初始配置是NO，改为YES）
+listen_ipv6=NO					#（初始为YES，改为NO）
+
+pam_service_name=vsftpd
+userlist_enable=YES				#是否启用userlist用户列表
+tcp_wrappers=YES					#是否启用tcp_wrappers
+
+[root@server vsftpd]# systemctl restart vsftpd.service
+此时本地用户就能访问到，在浏览器输入ftp://127.0.0.1/
+
+####客户端操作
+[root@bobo ~]# yum install ftp -y
+			
+[root@bobo ~]# ftp 192.168.8.87 21			###ftp连接，如果是默认端口可以不写，
+Connected to 192.168.8.87 (192.168.8.87).
+220 (vsFTPd 3.0.2)
+Name (192.168.8.87:root): anonymous			##匿名登录
+331 Please specify the password.
+Password:					##无密码回车
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp> cd pub					##登录成功
+250 Directory successfully changed.
+ftp> mkdir aaa
+550 Create directory operation failed.			##创建不成功，两个原因，权限没给，selinux有问题，配置的权限给了，那就是selinux的问题
+ftp> quit						
+221 Goodbye.
+
+##切到服务端
+[root@server vsftpd]# getsebool -a |grep ftp
+ftpd_anon_write --> off
+ftpd_connect_all_unreserved --> off
+ftpd_connect_db --> off
+ftpd_full_access --> off				###需要把这个打开成on
+ftpd_use_cifs --> off
+ftpd_use_fusefs --> off
+ftpd_use_nfs --> off
+ftpd_use_passive_mode --> off
+httpd_can_connect_ftp --> off
+httpd_enable_ftp_server --> off
+tftp_anon_write --> off
+tftp_home_dir --> off
+[root@server vsftpd]# setsebool -P ftpd_full_access=on	##可能会卡住，但是没报错就成功
+[root@server vsftpd]# chown ftp /var/ftp/pub/
+[root@server vsftpd]# systemctl restart vsftpd.service 
+
+
+##切回客户端
+[root@bobo ~]# ftp 192.168.8.87 21
+Connected to 192.168.8.87 (192.168.8.87).
+220 (vsFTPd 3.0.2)
+Name (192.168.8.87:root): anonymous
+331 Please specify the password.
+Password:
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp> cd pub
+250 Directory successfully changed.
+ftp> mkdir aaa
+257 "/pub/aaa" created				##此时终于成功，若还是失败考虑考虑pub文件的权限问题
+ftp> cd aaa
+250 Directory successfully changed.
+ftp> put anaconda-ks.cfg 
+local: anaconda-ks.cfg remote: anaconda-ks.cfg
+227 Entering Passive Mode (192,168,8,87,248,180).
+150 Ok to send data.
+226 Transfer complete.
+1723 bytes sent in 0.0372 secs (46.29 Kbytes/sec)
+ftp> quit						
+221 Goodbye.
+
+##此时在服务端，客户端都可看见这个文件，以服务端举例，切回服务端
+在浏览器输入ftp://127.0.0.1可以看见pub目录，进去可以发现客户端创建的aaa目录，进去可以看见anaconda-ks.cfg 文件，此时地址ftp://127.0.0.1/pub/aaa/
+拷贝文件地址ftp://127.0.0.1/pub/aaa/anaconda-ks.cfg
+[root@server vsftpd]# ls
+ftpusers  user_list  vsftpd.conf  vsftpd.conf.bak  vsftpd_conf_migrate.sh		##此时没anaconda-ks.cfg文件
+[root@server vsftpd]# wget ftp://127.0.0.1/pub/aaa/anaconda-ks.cfg
+--2020-03-24 18:38:02--  ftp://127.0.0.1/pub/aaa/anaconda-ks.cfg
+           => ‘anaconda-ks.cfg’
+Connecting to 127.0.0.1:21... connected.
+Logging in as anonymous ... Logged in!
+==> SYST ... done.    ==> PWD ... done.
+==> TYPE I ... done.  ==> CWD (1) /pub/aaa ... done.
+==> SIZE anaconda-ks.cfg ... 1723
+==> PASV ... done.    ==> RETR anaconda-ks.cfg ... done.
+Length: 1723 (1.7K) (unauthoritative)
+
+100%[======================================================================>] 1,723       --.-K/s   in 0s      
+
+2020-03-24 18:38:02 (259 MB/s) - ‘anaconda-ks.cfg’ saved [1723]
+
+[root@server vsftpd]# ls
+anaconda-ks.cfg  ftpusers  user_list  vsftpd.conf  vsftpd.conf.bak  vsftpd_conf_migrate.sh	##下载成功		
+
+
+
+####配置实名FTP服务
+useradd bobo				##创建一个普通用户，（我自己有bobo用户，就不创建了）
+
+[root@server vsftpd]# vim /etc/vsftpd/vsftpd.conf
+anonymous_enable=NO			##初始配置文件为YES
+local_enable=YES
+write_enable=YES
+local_umask=022
+userlist_deny=YES				##添加的，设置一个拒绝用户列表
+userlist_enable=YES			##添加的设置一个允许用户列表
+dirmessage_enable=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+xferlog_std_format=YES
+listen=YES
+listen_ipv6=NO
+
+pam_service_name=vsftpd
+userlist_enable=YES
+tcp_wrappers=YES
+
+##### /etc/vsftpd/ftpusers和/etc/vsftpd/user_list 存有用户列表
+[root@server vsftpd]# systemctl restart vsftpd.service
+
+
+##客户端登录操作
+[root@bobo ~]# ftp 192.168.8.87 21
+Connected to 192.168.8.87 (192.168.8.87).
+220 (vsFTPd 3.0.2)
+Name (192.168.8.87:root): anonymous	
+331 Please specify the password.
+Password:
+530 Login incorrect.
+Login failed.					##可以看见在修改配置文件后，的确匿名用户无法登录了
+ftp> 
+
+[root@bobo ~]# ftp 192.168.8.87 21
+Connected to 192.168.8.87 (192.168.8.87).
+220 (vsFTPd 3.0.2)
+Name (192.168.8.87:root): bobo
+331 Please specify the password.
+Password:					##bobo密码
+230 Login successful.			##可以发现实名用户能够登录，但是再之前的配置文件并没给权限，若想有写（创建文件目录）读权限，需要再配置
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp> cd pub
+550 Failed to change directory.			##cd失败，因为权限
+ftp> mkdir hahadaxian
+257 "/home/bobo/hahadaxian" created		##创建的目录文件都会转移到用户家目录
+
+
+
+#####虚拟用户模式配置
+因为虚拟用户模式的账号和口令都不是真是系统中存在的，所以配置虚拟用户模式哦会比本地用户模式更加安全。
+
+1. 创建虚拟用户数据库
+[root@server vsftpd]# vim /etc/vsftpd/vlogin 			##vlogin文件是自己起的新建的文件
+[root@server vsftpd]# cat /etc/vsftpd/vlogin 
+susa							##奇数是用户名
+666666							##偶数是密码
+natasha
+666666
+
+2. 使用db_load命令用HASH算法生成FTP用户数据库文件vlogin.db
+[root@server vsftpd]# db_load -T -t hash -f /etc/vsftpd/vlogin /etc/vsftpd/vlogin.db	##生成FTP用户数据库文件vlogin.db，每次改密码都要重新生成数据库文件
+[root@server vsftpd]# file /etc/vsftpd/vlogin.db					##查看文件属性
+/etc/vsftpd/vlogin.db: Berkeley DB (Hash, version 9, native byte-order)
+[root@server vsftpd]# chmod 600 /etc/vsftpd/{vlogin,vlogin.db}			##修改下权限，毕竟密码文件
+
+3. 创建pam文件，设置基于虚拟账户验证
+linux中一般通过pam文件设置账号的验证机制，然后通过创建新的pam文件
+使用新的数据文件进行登陆验证
+PAM文件中的db选项用于指定并验证账户和密码的数据库文件，数据库文件无需.db结尾
+[root@server vsftpd]# vim /etc/pam.d/vsftpd.pam
+[root@server vsftpd]# cat /etc/pam.d/vsftpd.pam
+auth	required	/lib64/security/pam_userdb.so db=/etc/vsftpd/vlogin
+account	required	/lib64/security/pam_userdb.so db=/etc/vsftpd/vlogin
+
+
+4. 设置虚拟账户的共享目录
+所有的虚拟账号都需要映射到一个真实的系统账号
+[root@server vsftpd]# useradd -s /sbin/nologin -d /home/ftp virtual
+[root@server vsftpd]# cp /etc/redhat-release /home/ftp/
+
+
+5. 修改配置文件！！！！！！！！！！！！！！（千万千万别有空格！！！！我日）
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+local_umask=022
+userlist_deny=YES
+userlist_enable=YES
+guest_enable=YES   				#开启虚拟用户模式
+guest_username=virtual				#指定虚拟用户账号，之前创建的账户
+dirmessage_enable=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+xferlog_std_format=YES
+listen=YES
+listen_ipv6=NO
+allow_writeable_chroot=YES				##这个丢了客户用虚拟用户登录时会报500的错误
+	
+pam_service_name=vsftpd.pam    			#指定pam文件，是上面设置的vsftpd.pam 文件
+userlist_enable=YES
+tcp_wrappers=YES
+user_config_dir=/etc/vsftd_user_conf			##添加的，用户权限配置文件存放路径
+user_sub_token=$USER				##添加的
+
+6. 为每个用户设置独立的共享路径
+通过在主配置文件中使用user_config_dir选项，设置一个基于账户的配置目录
+该目录下可以创建若干个与账户名称同名的文件，并在文件中此账户设置独立的配置选项
+包括权限，共享路径等
+[root@server vsftpd]# mkdir /etc/vsftpd_user_conf		##vsftpd设置中的路径
+[root@server vsftpd]# vim /etc/vsftpd_user_conf/susa	##添加susa用户（不用真实存在useradd，虚拟用户），文件还可以写权限啥的
+[root@server vsftpd]# vim /etc/vsftpd_user_conf/natasha
+[root@server vsftpd]# cat /etc/vsftpd_user_conf/susa
+local_root=/home/ftp/$USER			##指定用户家目录
+[root@server vsftpd]# cat /etc/vsftpd_user_conf/natasha 
+local_root=/home/ftp/$USER
+
+7. 重启服务
+[root@server ~]# systemctl restart vsftpd.service
+Job for vsftpd.service failed because the control process exited with error code. See "systemctl status vsftpd.service" and "journalctl -xe" for details.
+报错日志
+Mar 24 21:20:44 server systemd[1]: Failed to start Vsftpd ftp daemon	####！！！！最后查出来配置文件后有空格
+[root@server vsftpd]# systemctl restart vsftpd.service		##修改后成功
+
+
+8.服务端验证
+500 OOPS: vsftpd: refusing to run with writable root inside chroot()		##若登录报这个这证明配置文档有个地方有错误allow_writeable_chroot=YES
+Login failed.
+421 Service not available, remote server has closed connection
+
+[root@bobo ~]# ftp 192.168.8.87 21
+Connected to 192.168.8.87 (192.168.8.87).
+220 (vsFTPd 3.0.2)
+Name (192.168.8.87:root): susa				##虚拟用户登录成功，注意不需要客户端有susa这个用户，只需要一个virtual账户作为映射													
+331 Please specify the password.			[root@server vsftpd]# useradd -s /sbin/nologin -d /home/ftp virtual
+Password:						[root@server vsftpd]# cp /etc/redhat-release /home/ftp/
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp> cd pub					##此时用户susa是没任何权限的，因为在susa配置文件中只设置了家目录信息
+550 Failed to change directory.			##尚不知道如何改权限，试了网上的都失败了，枯了
+ftp> ls
+227 Entering Passive Mode (192,168,8,87,111,117).
+150 Here comes the directory listing.
+226 Transfer done (but failed to open directory).
+ftp> mkdir aabb
+550 Permission denied.
+
+							
+
+
+虚拟用户配置参考地址。https://blog.51cto.com/yuanbin/12907
+
+
+
+
+
+
+
+
+
+
+
+
+

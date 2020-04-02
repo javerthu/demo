@@ -1,0 +1,125 @@
+## 数据备份与还原
+	为了保证数据的安全性，需要定期对数据进行备份
+	- 备份方式多种多样，效果也不一样
+		- 增量备份
+		- 差异备份
+		- 全量备份
+	- 为了保证数据有效性，备份数据必须可还原
+	- 数据备份
+	- 数据还原
+	- 数据库迁移
+	- 导出导入文本文件
+
+
+## 数据备份
+	- 使用mysqldump命令进行备份
+		- mysqldump命令可以将数据库中的数据备份成一个文本文件，表的结构和表中的数据将存储在生成的文本文件中
+		- mysqldump命令的工作流程
+			- 首先查找需要备份的表的结构，再在文本文件中生成一个CREATE语句
+			- 然后将表中的所有记录转换成一条条INSERT语句
+			- 然后这些CREATE语句和INSERT语句都是还原时使用的
+			- 保证还原数据可用
+
+	1. 备份一个数据库
+		使用mysqldump备份一个数据库的基础语法
+		- mysqldump -u username  -p  dbanme  table1 table2 ... > BackName.sql
+			- dbname  数据库名称
+			- table1表的名称，若没有表名时将备份整个数据库
+
+		- 使用root用户备份EXAMPLE数据库下的表
+			- mysqldump -u root -p EXAMPLE qidianreader lianjia > /root/qidian_lj.bak.sql
+				- 文件开头记录了mariadb的版本，备份的主机名和数据库名
+				- 文件‘--’开头的都是SQL语言的注释
+				- 以‘/*!40101’都是mairadb有关的注释
+				- 40401时mairadb的数据库版本号
+				- 文件最后记录课备份时间
+
+		- 备份多个数据库
+			- mysqldump -u useranme -p --databases dbname1 dbname2 ... > backname.sql
+				- --databases 后面跟多个数据库名称
+			- 使用mysqldump备份EXAMPLE和mysql数据库
+				- mysqldump -u root -p --databases EXAMPLE mysql > db.bak.sql
+		- 备份所有数据库
+			- mysqldump -u root -p  --all-databases > allDB.sql
+			
+
+
+
+	 - 直接复制整个数据库目录
+		 - 此方法为mairadb备份最简单的方法
+		 - 将mairadb中的数据库文件直接复制出来
+		 - 速度快
+		 - 需要停止服务器(用来保证数据的一致性)
+		 - 只对MyISAM存储引擎的表使用
+		 - 对数据库版本有一定要求
+
+
+
+	- 使用mysqlhotcopy工具进行备份
+		- 如果备份时不能停止mairadb服务器，可以采用mysqlhotcopy工具，mysqlhotcopy工具的备份方式比mysqldump快
+		- 工作原理
+			- mysqlhotcopy该工具是一个Perl脚本，主要在linux环境下使用，mysqlhotcopy工具使用LOCL TABLES，FLUSH TABLE（把在内存还没写入磁盘的数据写入磁盘以便备份）和cp进行快速备份
+			- 就是指先将需要的数据库加上一个读锁操作，然后利用FLUSH TABLES将内存中的数据写回到硬盘上的数据库中
+			- 最后把需要备份的数据库我那件复制到目标目录
+		- mysqlhotcopy命令格式：
+			- mysqlhotcopy [option] dbname1 dbname2 ... backDir/
+				- dbname 表示需要备份的数据库名称
+				- backdir代表备份到哪个目录
+				- option	
+					- --help 查看mysqlhotcopy帮助信息
+					- --allowold	如果备份目录下存在相同的备份文件，则将旧的备份文件名加上_old标识
+					- --keepold	如果备份目录下存在相同的备份文件，不删除旧的备份文件，而是将旧的改名
+					- --noindices	只备份数据文件，不备份索引文件
+					- --flushlog	本次备份完成将对数据库的更新记录到日志
+					- --user=用户名	-u
+					- --password=密码	-p
+					- --port=端口号	-P(大写)
+					- --scoket=socket文件	-S	
+
+			- 优点
+			  - 速度快
+			- 缺点
+			  - 只支持MyISAM引擎
+			  - 需要安装perl语言及配置支持环境，因为hotcopy由perl写成
+			  - 选项参数较少，功能不够强大，比如不提供--where选项，无法选取某部分数据备份
+			  - 只能运行在数据库目录所在的机器上
+
+
+## 数据还原
+	备份的目的就是为了还原
+	- 使用mysql命令还原
+		- mysqldump工具将数据库中的数据备份成一个文件文件，后缀通常为.sql
+		- 而还原则通过mysql进行还原
+		- 备份一般包含CREATE和INSERT语句
+
+	
+	- mysql -u useranme -p [dbname] < backup.sql
+	- mysql -u username -p EXAMPLE < aa.sql
+
+
+	- mysql -u root -p EXAMPLE  < lianjia.sql
+
+
+	注意：
+	如果使用--all-databases参数备份了所有数据库，那么还原时不需要指定数据库
+
+
+	- 直接复制数据库目录
+		- 通过复制目录方式还原数据库时必须保证俩个mairadb的数据库主版本必须相同
+		- 只对MyISAM类型表生效
+		- 针对Innnodb表不能直接复制
+		- 通过mysqlhotcopy工具备份的数据也是通过这种方式还原
+		- chown -R mysql:mysql dataDIR
+
+
+
+## 数据库迁移
+	数据库迁移指的是数据库从一个系统移动到另一个系统上
+
+	案例：
+		linux操作系统下的mysql向Mairadb迁移
+		卸载原有的mysql相关组件
+		安装mariadb软件包
+		执行升级命令   mysql_upgrade -p
+		升级完成后查看数据库版本
+		mysql -u root -p -e "SHOW GLOBAL VARIABLES LIKE 'version'"

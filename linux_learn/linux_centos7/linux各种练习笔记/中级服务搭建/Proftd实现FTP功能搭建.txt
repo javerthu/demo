@@ -1,0 +1,354 @@
+# Proftpd
+	- FTP服务端实现的是一种软件或者方式
+	- 安全，配置极其简单，容易配置与管理
+	- 软件配置类似Apache配置相似的格式
+	- 借鉴了wu-ftpd优点
+
+
+## 安装Proftpd软件
+/etc/proftpd.conf 
+- ftp://ftp.proftpd.org
+[root@server test]# wget ftp://ftp.proftpd.org/distrib/source/proftpd-1.3.5.tar.gz		##这个网站国内速度太慢
+自己搞了个proftpd-1.3.4rc2.tar.bz2包试试一样不一样
+[root@server test]# tar -xjvf proftpd-1.3.4rc2.tar.bz2 -C /usr/src
+[root@server test]# cd /usr/src/
+[root@server src]# ls
+debug  kernels  proftpd-1.3.4rc2
+
+[root@server src]# yum install gcc -y
+[root@server src]# cd proftpd-1.3.4rc2/
+[root@server proftpd-1.3.4rc2]# ./configure --prefix=/usr/local/proftpd --sysconfdir=/etc/	##指定编译安装路径和配置文件路径
+[root@server proftpd-1.3.4rc2]# make && make install
+- 编译环境检查
+	- CONFIGURE部分选项说明
+		- --prefix=PREFIX	指定安装路径
+		- --sysconfdir=DIR	指定FTP服务配置文件路径
+		- --localstatedir=DIR	指定运行状态的文件存放路径
+		- --with-modules=mod_Ldap	指定需要加载额功能模块
+		- --enable-memcahe	支持缓存功能
+		- --enable-nls	支持多语言环境
+		- --enable-shadow	支持使用/etc/shadow验证用户密码
+		- enable-openssl	支持TLS加密FTP服务
+
+[root@server proftpd-1.3.4rc2]# PATH=$PATH:/usr/local/proftpd/bin			##添加至环境变量
+[root@server proftpd-1.3.4rc2]# vim /etc/proftpd.conf 
+
+
+## 配置文件解析
+	- vim /etc/proftpd.conf
+	- 全局设置
+		- 设置全局生效的参数，参数与值使用空格分割
+	- 目录设置
+		- 指定共享路径以及相关权限设置
+		- LImit 设置路径权限
+	- 匿名访问设置
+		- <anonymous "路径"></anonymous> 设置匿名访问权限以及访问策略
+
+[root@server proftpd-1.3.4rc2]# cat /etc/proftpd.conf 			###下面是删除注释后的
+ServerName			"ProFTPD Default Installation"		#客户端连接后显示的提示字符
+ServerType			standalone			#服务启动模式，独立后台进程
+DefaultServer			on				#默认服务器
+Port				21				#默认监听21号端口
+UseIPv6				off				#默认禁用IPV6
+Umask				022				#权限掩码
+MaxInstances			30				#最大并发连接数
+User				nobody				#启动服务器账户
+Group				nogroup				#启动服务器的组账户
+
+AllowOverwrite		on					#是否允许使用文件覆盖权限
+
+########补充选项#####
+AllowRetrievRestart	on						#是否支持断点续传(上传)
+AllowStoreRestart	on						#是否支持断点续传(下载)
+RootLogin	off							#禁止root用户登陆
+Systemlog		/var/log/proftp.log					#产生独立的日志文件
+TransferLog	/var/log/proftp.log					#记录用户下载的日志信息
+########补充选项#######
+
+<Limit SITE_CHMOD>						#权限设置
+  DenyAll
+</Limit>
+
+<Anonymous ~ftp>							#匿名访问设置，默认为匿名访问
+  User				ftp
+  Group				ftp
+
+  UserAlias			anonymous ftp
+
+  MaxClients			10
+
+  DisplayLogin			welcome.msg
+  DisplayChdir			.message
+
+  <Limit WRITE>							#权限设置
+    DenyAll
+  </Limit>
+</Anonymous>
+
+
+
+## 权限设置
+- Proftpd可以通过目录属性添加<Limit>的方式设置访问权限
+CWD		进入该目录
+MKD		创建目录
+RNFR		更名
+DELE		删除文件
+RMD		删除目录
+READ		可读
+WRITE		可写
+STOR		可上传
+RETR		可下载
+DIRS		允许列出目录
+LOGIN		允许登陆
+ALL		所有
+AllowUser		设置允许账户，多个账号用逗号隔开
+AllowGroup	设置允许的组账号，多个账号逗号隔开
+DenyGroup	拒绝组账号，多个账号逗号隔开
+AllowAll		允许所有
+DenyAll		拒绝所有
+
+
+## 虚拟用户应用案例
+-公司
+	- 商务部
+	- 设计部
+	- 研发部
+	- 运维部
+		- 各个部门访问FTP服务可以看到所有的目录
+		- 但是只可以访问本部门的目录
+		- 开启FTP日志功能
+		- FTP采用基于文件的认证方式
+		- 共享目录设置：/vat/ftp
+
+1、创建启动账户以及共享目录
+[root@server proftpd-1.3.4rc2]# useradd -M -s /sbin/nilogin  proftp			##添加proftp用户
+[root@server ~]# mkdir -p /var/ftp/{develop,ops,sales,design}				##创建共享目录
+[root@server ~]# chmod 777 /var/ftp/{develop,ops,sales,design}
+
+2、修改配置文件
+[root@server ~]# cat /etc/proftpd.conf 
+# This is a basic ProFTPD configuration file (rename it to 
+# 'proftpd.conf' for actual use.  It establishes a single server
+# and a single anonymous login.  It assumes that you have a user/group
+# "nobody" and "ftp" for normal operation and anon.
+
+ServerName			"ProFTPD Default Installation"
+ServerType			standalone
+DefaultServer			on
+DefaultAddress                  		192.168.8.87			###在默认上文档添加的
+
+# Port 21 is the standard FTP port.
+Port				21
+
+# Don't use IPv6 support by default.
+UseIPv6				off
+
+# Umask 022 is a good standard umask to prevent new dirs and files
+# from being group and world writable.
+Umask				022
+
+# To prevent DoS attacks, set the maximum number of child processes
+# to 30.  If you need to allow more than 30 concurrent connections
+# at once, simply increase this value.  Note that this ONLY works
+# in standalone mode, in inetd mode you should use an inetd server
+# that allows you to limit maximum number of processes per service
+# (such as xinetd).
+MaxInstances			30
+
+# Set the user and group under which the server will run.
+User				proftp
+Group				proftp
+
+# To cause every FTP user to be "jailed" (chrooted) into their home
+# directory, uncomment this line.
+#DefaultRoot ~
+DefaultRoot                     		/var/ftp				##在默认文件上添加的默认根目录
+
+# Normally, we want files to be overwriteable.
+AllowOverwrite		on
+
+# Bar use of SITE CHMOD by default
+#<Limit SITE_CHMOD>						##初始文档的权限，注释掉
+#  DenyAll								##初始文档的权限，注释掉
+#</Limit>								##初始文档的权限，注释掉
+
+# A basic anonymous configuration, no upload directories.  If you do not	
+# want anonymous users, simply delete this entire <Anonymous> section.
+#<Anonymous ~ftp>						##初始文档的权限，注释掉
+#  User				ftp				##初始文档的权限，注释掉
+#  Group				ftp
+
+  # We want clients to be able to login with "anonymous" as well as "ftp"
+#  UserAlias			anonymous ftp			##初始文档的权限，注释掉
+
+  # Limit the maximum number of anonymous logins
+#  MaxClients			10				##初始文档的权限，注释掉
+
+  # We want 'welcome.msg' displayed at login, and '.message' displayed
+  # in each newly chdired directory.
+#  DisplayLogin			welcome.msg			##初始文档的权限，注释掉
+#  DisplayChdir			.message				##初始文档的权限，注释掉
+
+  # Limit WRITE everywhere in the anonymous chroot			
+#  <Limit WRITE>							##初始文档的权限，注释掉
+#    DenyAll							##初始文档的权限，注释掉
+#  </Limit>							##初始文档的权限，注释掉
+#</Anonymous>							##初始文档的权限，注释掉
+
+####后面的都是添加的权限管理
+RequireValidShell       off						#用户登陆是否开启shell(对虚拟用户狠重要)
+AuthUserFile            /usr/local/proftpd/ftpd.passwd				
+
+<Directory "/var/ftp/*">
+<Limit CWD READ>
+    AllowAll
+</Limit>
+</Directory>
+
+<Directory "/var/ftp/ops">
+<Limit CWD MKD RNFR READ WRITE STOR RETR>				##等等权限设置
+    DenyAll
+</Limit>
+<Limit DELE>							##删除权限
+    DenyAll
+</Limit>
+<Limit CWD MKD RNFR READ WRITE STOR RETR>
+    AllowUser harry							##允许harry用户的权限
+</Limit>
+</Directory>
+
+<Directory "/var/ftp/develop">
+<Limit CWD MKD RNFR READ WRITE STOR RETR>
+    DenyAll
+</Limit>
+<Limit DELE>
+    DenyAll
+</Limit>
+<Limit CWD MKD RNFR READ WRITE STOR RETR>
+    AllowUser jack,jork
+</Limit>
+</Directory>
+
+<Directory "/var/ftp/sales">
+<Limit CWD MKD RNFR READ WRITE STOR RETR>
+    DenyAll
+</Limit>
+<Limit DELE>
+    DenyAll
+</Limit>
+<Limit CWD MKD RNFR READ WRITE STOR RETR>
+    AllowUser sales 
+</Limit>
+</Directory>
+
+<Directory "/var/ftp/design">
+<Limit CWD MKD RNFR READ WRITE STOR RETR>
+    DenyAll
+</Limit>
+<Limit DELE>
+    DenyAll
+</Limit>
+<Limit CWD MKD RNFR READ WRITE STOR RETR>
+    AllowUser design1
+</Limit>
+</Directory>
+
+
+3、创建虚拟用户账户
+- 创建访问FTP所需要的账户和密码：- pftpassw
+		
+用法：
+	创建用户文件，组文件，迷人创建用户文件ftpd.passwd
+选项：
+	--passwd	创建密码文件，AuthUserFile指定的文件
+	--group		创建组文件
+	--name		创建用户名
+	--uid		创建虚拟uid
+	--gid		创建虚拟组id
+	--home		指定用户家目录
+	--shell		指定用户shell
+	--file		指定创建文件名，默认ftpd.passwd
+
+[root@server ~]# ftpasswd --passwd --name=harry --uid=1003 --gid=1003 --home=/home/nohome --shell=/bin/false
+ftpasswd: creating passwd entry for user harry
+
+ftpasswd: /bin/false is not among the valid system shells.  Use of
+ftpasswd: "RequireValidShell off" may be required, and the PAM
+ftpasswd: module configuration may need to be adjusted.
+
+
+Password: 
+Re-type password: 
+
+ftpasswd: entry created
+[root@server ~]# echo "555555" | ftpasswd --stdin --passwd --name=jacob --uid=1002 --gid=1002 --home=/home/nohome --shell=/bin/false
+ftpasswd: creating passwd entry for user jacob
+
+ftpasswd: /bin/false is not among the valid system shells.  Use of
+ftpasswd: "RequireValidShell off" may be required, and the PAM
+ftpasswd: module configuration may need to be adjusted.
+
+ftpasswd: entry created
+
+
+4、- 启动proftpd服务
+[root@server ~]#   /usr/local/proftd/sbin/proftpd
+bash: /usr/local/proftd/sbin/proftpd: No such file or directory
+[root@server ~]#  /usr/local/proftpd/sbin/proftpd 
+ - setting default address to 192.168.8.87
+
+##如果之前开了vsftpd服务，关了
+[root@bobo ~]# ftp 192.168.8.87 
+Connected to 192.168.8.87 (192.168.8.87).
+220 ProFTPD 1.3.4rc2 Server (ProFTPD Default Installation) [192.168.8.87]		##显示 ProFTPD才是连接上
+Name (192.168.8.87:root):
+
+
+可以在本地浏览器ftp://192.168.8.87/  （windows也可）
+如果访问不到关下防火墙和slinux
+[root@server ~]# systemctl stop firewalld.service 
+[root@server ~]# setenforce 0
+
+ftp://192.168.8.87/
+
+
+
+[root@centos7 yum.repos.d]# yum -y install proftpd
+/etc/proftpd.conf
+[root@centos7 yum.repos.d]# vim /etc/proftpd.conf
+
+[root@centos7 sbin]# wget http://www.castaglia.org/proftpd/contrib/ftpasswd
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

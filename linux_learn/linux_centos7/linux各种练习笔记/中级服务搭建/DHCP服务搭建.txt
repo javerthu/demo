@@ -94,8 +94,9 @@ Mar 22 18:14:50 centos7 dhcpd[8457]: Sending on   Socket/fallback/fallback-net
 ###以上是初始状态
 
 ###把服务端bobo的ip删除改为dhcp模式
-												###本来应该是有DISCOVER包和，OFFER包（包含192.168.8.51地址，该地址是地址池的地址）					
-Mar 22 18:15:05 centos7 dhcpd[8457]: DHCPREQUEST for 192.168.8.51 from 00:0c:29:05:c7:3a (bobo) via ens32		###md之前把文件夹搞没了，因为之前连接过，所以直接发的是REQUEST包
+Mar 22 18:52:50 centos7 dhcpd[9153]: DHCPDISCOVER from 00:0c:29:05:c7:3a via ens32				##DISCOVER
+Mar 22 18:52:51 centos7 dhcpd[9153]: DHCPOFFER on 192.168.8.51 to 00:0c:29:05:c7:3a (bobo) via ens32			##OFFER
+Mar 22 18:52:50 centos7 dhcpd[9153]: DHCPREQUEST for 192.168.8.51 from 00:0c:29:05:c7:3a (bobo) via ens32		##REQUEST
 Mar 22 18:15:05 centos7 dhcpd[8457]: DHCPACK on 192.168.8.51 to 00:0c:29:05:c7:3a (bobo) via ens32			###确认包
 
 这样dhcp服务就启动成功了
@@ -135,7 +136,71 @@ Mar 22 18:15:05 centos7 dhcpd[8457]: DHCPACK on 192.168.8.51 to 00:0c:29:05:c7:3
 	}
 
 
+###DHCP自动布置脚本
 
+	#!/bin/bash
+	#Auto deploy DHCP server   for 192.168.0.0/24 network
+	
+	# bian liang   net   mask   range
+	
+	
+	NET=192.168.8.0
+	MASK=255.255.255.0
+	RANGE="192.168.8.70 192.168.8.80"
+	DNS=8.8.8.8
+	DOMAIN_NAME="example.com"
+	ROUTER=192.168.8.254
+	
+	
+	#test yum
+	tets_yum() {
+	yum list dhcp > /dev/null 2& >1
+	if [ $? -ne 0 ];then
+		echo
+		echo "There was an error to yum....."
+		echo "plese verify your yum settings and try again..."
+		echo
+		exit
+	fi
+	}	
+	
+	#cp config 
+	test_conf() {
+	if [ -f /etc/dhcp/dhcpd.conf ];then
+		mv /etc/dhcp/dhcpd.conf  /etc/dhcp/dhcpd.conf.bak
+	fi
+	}
+	
+	
+	# create new dhcp config
+	create_conf() {
+	cat >  /etc/dhcp/dhcpd.conf << EOF
+	#dhcpd.conf
+	default-lease-time 600;
+	max-lease-time 7200;
+	subnet 192.168.8.0  netmask 255.255.255.0 {
+	  range $RANGE;
+	  option domain-name-servers $DNS;
+	  option domain-name "$DOMAIN_NAME";
+	  option routers $ROUTER;
+	  option broadcast-address 192.168.8.255;
+	  default-lease-time 600;
+	  max-lease-time 7200;
+	}
+	EOF
+	}
+
+	
+	rpm -q dhcp > /dev/null 2& >1
+	if [ $? -ne 0 ];then
+	    test_yum
+	    yum install dhcp -y > /dev/null 2& >1
+	fi
+	test_conf
+	create_conf
+	systemctl restart dhcpd
+	systemctl enable dhcpd
+	sleep 10
 
 
 

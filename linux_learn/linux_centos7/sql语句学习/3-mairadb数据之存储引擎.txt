@@ -1,0 +1,99 @@
+# 数据库存储引擎
+	- 存储引擎的概念为mariadb的特点
+	- 将数据库中的表以不同的方式进行存储
+	- 查看mariadb数据库支持那些存储引擎
+		- SHOW ENGINES\G
+- 参数说明
+Engine: InnoDB			指存储引擎名称
+Support: DEFAULT			是否支持上述该引擎
+Comment: Percona-XtraDB, Supports transactions, row-level locking, and foreign keys	对该引擎的描述
+Transactions: YES			是否支持事物处理，yes代表支持
+XA: YES				是否是分布式交易处理的XA规范
+Savepoints: YES			是否支持保存点，方便事物回滚
+
+
+- show variables like 'have%';		##也可查看存储引擎
+- 第一列存储引擎名称
+- 引擎支持情况，yes表示支持，no不支持，disable支持但没开启
+- show variables like 'storage_engine';
+- 查看mairadb数据库默认存储引擎
+
+	
+
+## InnoDB存储引擎
+	- 为mairadb默认存储引擎
+	- 事务处理，回滚，奔溃修复能力和多版本并发控制的事物安全（事务处理能力是特点优点）
+	- 是mysql上第一个提供外键约束的表引擎
+	- 特点和优点
+		- innodb存储引擎支持自动增长列(AUTO_INCREMENT)
+		- 自动增长列必须为主键
+		- 在插入时，如果自动增长列不输入值，则默认的值为自动增长后的值
+		- 如果输入为0或者NULL，插入的值也是自动增长后的值
+		- 若插入的值前面没有出现过，且唯一，可以直接插入
+
+
+		- Innodb存储引擎支持外键(FOREIGN KEY),外键所在的表为子表，外键所依赖的表为父表
+		- 父表中被子表外键关联的字段必须为主键
+		- 当删除更新父表的某条信息后，子表也必须有相应的改变
+
+
+		- Innodb存储引擎中创建的表的结构存储在.frm文件中
+		- 数据和索引存储在innodb_data_home_dir和innodb_data_file_path定义表空间中
+
+
+		- 缺点是其读写效率较差，占用的数据空间相对较大
+
+
+## MyISAM存储引擎
+	-  是mairadb常见的存储引擎
+	-  ISAM，增加了一些拓展
+	-  MyISAM存储的表存储为三个文件，文件的名字与表明相同
+	-  拓展名分为frm（表的结构）,MYD（存储数据）,MYI（文件存储索引）
+	-  表的结构，存储数据(MyUDATA)，文件存储索引(MYINDEX)
+
+	- 基于MYISAM存储引擎表支持三种不同的存储方式，包括静态型，动态型，压缩型
+		- 静态型为MYISAM存储默认存储格式，字段为固定长度
+		- 动态型包含变长字段，记录长度不固定
+		- 压缩型，占用空间较小，使用myisampack工具创建
+
+
+	- MyISAM存储引擎的优势在与占用空间小，处理速度快
+	- 缺点不支持事物的完整性和并发性
+
+
+
+## MEMORY存储引擎
+	- MEMORY存储引擎是一类特殊的存储引擎
+	- 使用存储在内存中的内存来创建（所以速度很快）
+	- 每个基于MEMORY存储引擎的表实际对应一个磁盘文件
+	- 该文件的文件名和表明相同，文件类型为frm类型
+	- 该文件只存储表的结构，数据存储在内存中
+	- 处理效率高
+	- 必须有足够的内存支持（因为在内存中，意外断电会导致数据丢失）
+
+	- MEMORY存储表的大小受限，表的大小由俩个参数决定
+		- max_rows：创建表时指定
+		- max_heap_table_size:默认大小16M，可扩展
+
+
+
+## 存储引擎的选择
+	事务安全
+	存储限制
+	空间使用
+	内存使用
+	插入数据的速度
+	对外键的支持
+
+	- Innodb	
+
+	- MyISAM（插入数据快，内存空间占用相对较低）
+	- MEMORY
+
+	- 同一个数据库中可以使用多种存储引擎的表
+
+
+
+## 改变表的存储引擎
+	- ALTER TABLE 表名 ENGINE=存储引擎名；
+	- ALTER TABLE food ENGINE=Aria;

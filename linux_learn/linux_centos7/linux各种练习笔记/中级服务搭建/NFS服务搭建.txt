@@ -1,0 +1,188 @@
+## NFS网络文件服务
+	- Network File System   网络文件系统
+	- 用于unix/类unix系统之间进行文件共享
+	- sun
+	- NFSv2  NFSv3  NFSv4
+	- NFS 端口号  tcp 2049
+
+## 工作原理
+	- C/S
+	- RPC  远程过程调用
+		- 为远程通信双方提供与喜爱基本信息
+	- rhel7系统又rpcbind提供RPC协议支持
+	- V4不需要rpcbind提供服务，但依然依赖rpc.mountd
+	- 系统默认提供V4版本的共享
+
+	- 所需软件包
+		- nfs-utils
+		- rpcbind
+
+
+## 客户端于服务端NFS通讯过程（总体来说1、客户端RPC访问服务端的RPC获取NFS端口信息。2、客户端通过RPC访问NFS共享文件）
+	- 首先服务器端启动RPC服务，开启111端口
+	- 启动nfs服务，并向RPC注册端口信息
+	- 客户端启动RPC（portmap），向服务端RPC请求NFS服务端口
+	- 服务端反馈NFS端口信息给客户端
+	- 客户端拿着NFS端口信息访问NFS文件共享
+
+
+
+
+######实现流程
+/etc/exports
+
+######服务端操作
+[root@centos7 ~]# yum install nfs-utils rpcbind -y
+
+[root@centos7 ~]# systemctl restart rpcbind.service
+[root@centos7 ~]# systemctl restart nfs-server
+[root@centos7 ~]# systemctl enable rpcbind.service 
+[root@centos7 ~]# systemctl enable nfs-server
+Created symlink from /etc/systemd/system/multi-user.target.wants/nfs-server.service to /usr/lib/systemd/system/nfs-server.service.
+
+[root@centos7 ~]# firewall-cmd --permanent --add-service=nfs
+success
+[root@centos7 ~]# firewall-cmd --permanent --add-service=rpc-bind 		######缺一不可全部加进防火墙规则
+success
+[root@centos7 ~]# firewall-cmd --permanent --add-service=mountd 
+success
+[root@centos7 ~]# firewall-cmd --reload 
+success
+
+[root@centos7 ~]# mkdir /nfsshare
+[root@centos7 ~]# echo "hello world" > /nfsshare/test.txt
+[root@centos7 ~]# vim /etc/exports
+[root@centos7 ~]# cat /etc/exports
+/nfsshare	192.168.8.0/24(rw,sync)		####192.168.8.0网段24位掩码
+
+[root@centos7 ~]# systemctl restart rpcbind.service 
+[root@centos7 ~]# systemctl restart nfs-server
+
+
+
+#####客户端操作
+- 客户端扫描共享文件
+- showmount
+	- a		列出nfs服务共享的完整目录信息
+	- d		仅列出客户端远程安装目录
+	- e		显示导出目录的列表	
+
+[root@bobo ~]# showmount -e 192.168.8.87
+clnt_create: RPC: Port mapper failure - Unable to receive: errno 113 (No route to host) 	######非常有可能是防火墙rpc-bind服务没通过，可以关掉服务端的firewalld.server试试
+
+[root@bobo ~]# showmount -e 192.168.8.87			####在服务端添加了rpc-bind后可以访问
+Export list for 192.168.8.87:
+/nfsshare 192.168.8.0/24
+
+[root@bobo ~]# mkdir /mnt/nfsshare
+[root@bobo ~]# mount -t nfs 192.168.8.87:/nfsshare/ /mnt/nfsshare/
+##或永久挂载
+[root@bobo nfsshare]# vim /etc/fstab 
+192.168.8.87:/nfsshare	/mnt/nfsshare	nfs	defaults		0    0
+
+[root@bobo ~]# cd /mnt/nfsshare/			
+[root@bobo nfsshare]# ls
+test.txt
+[root@bobo nfsshare]# cat test.txt 				######可以看见服务端的文件在这成功获取
+hello world
+
+[root@centos7 nfsshare]# touch aaa.txt				####在服务端创建一个aaa.txt文件
+[root@centos7 nfsshare]# ls
+aaa.txt  test.txt
+[root@bobo nfsshare]# ls					####可以看见客户端能够收到
+aaa.txt  test.txt
+
+
+
+###服务端若无法更改权限，或写文件等操作，如下
+[root@bobo nfsshare]# touch a.txt
+touch: cannot touch ‘a.txt’: Permission denied
+[root@bobo mnt]# chown nfsnobody:nfsnobody nfsshare/		####更改权限
+chown: changing ownership of ‘nfsshare/’: Operation not permitted
+
+###在服务端修改/etc/exports文件
+修改前
+[root@centos7 ~]# cat /etc/exports
+/nfsshare	192.168.8.0/24(rw,sync)	
+修改后
+[root@centos7 nfsshare]# cat /etc/exports
+/nfsshare	192.168.8.0/24(rw,no_root_squash,sync)	
+###然后重启下服务		
+[root@centos7 ~]# systemctl restart rpcbind.service 
+[root@centos7 ~]# systemctl restart nfs-server
+	
+###重新挂载
+[root@bobo mnt]# mount -a
+[root@bobo mnt]# ls
+nfsshare
+
+[root@bobo mnt]# chown nfsnobody:nfsnobody nfsshare/
+[root@bobo mnt]# ll
+total 0
+drwxr-xr-x. 2 nfsnobody nfsnobody 37 Mar 23 00:10 nfsshare
+[root@bobo mnt]# cd nfsshare/
+[root@bobo nfsshare]# ls
+aaa.txt  test.txt
+[root@bobo nfsshare]# touch bb.txt
+[root@bobo nfsshare]# ls			#####服务端也会同步更新bb.txt文件
+aaa.txt  bb.txt  test.txt
+
+
+####至此NFS服务搭建完成
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

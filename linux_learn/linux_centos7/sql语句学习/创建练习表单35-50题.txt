@@ -1,0 +1,195 @@
+-- 36、查询任何一门课程成绩在70分以上的姓名、课程名称和分数
+-- SELECT st.*
+-- ,GROUP_CONCAT(sc.s_score)
+-- FROM score sc
+-- LEFT JOIN student st ON sc.s_id=st.s_id
+-- WHERE sc.s_score > 70
+-- GROUP BY st.s_id
+-- ;
+-- 
+-- select st2.s_id,st2.s_name,c2.c_name,sc2.s_score from student st2
+-- left join score sc2 on sc2.s_id=st2.s_id
+-- left join course c2 on c2.c_id=sc2.c_id 
+-- where st2.s_id in(
+-- select st.s_id from student st 
+-- left join score sc on sc.s_id=st.s_id 
+-- group by st.s_id having min(sc.s_score)>=70)
+-- order by s_id
+-- ;
+
+-- 37、查询不及格的课程
+-- SELECT st.s_name,co.c_name,sc.s_score
+-- FROM score sc
+-- LEFT JOIN student st ON st.s_id=sc.s_id
+-- LEFT JOIN course co ON sc.c_id=co.c_id
+-- WHERE sc.s_score < 60
+-- ;
+-- -- 
+-- select st.s_id,c.c_name,st.s_name,sc.s_score from student st
+-- inner join score sc on sc.s_id=st.s_id and  sc.s_score<60
+-- inner join course c on c.c_id=sc.c_id
+-- ; 
+-- 
+
+-- 38、查询课程编号为01且课程成绩在70分以上的学生的学号和姓名
+-- SELECT *
+-- FROM score sc
+-- LEFT JOIN student st ON sc.s_id=st.s_id
+-- WHERE sc.s_score > 70 AND sc.c_id='01'
+-- ;
+-- 
+-- select st.s_id,st.s_name,sc.s_score from student st
+-- inner join score sc on sc.s_id=st.s_id and sc.c_id="01" and sc.s_score>70
+-- ;
+
+-- 39、求每门课程的学生人数
+-- SELECT co.c_name,COUNT(sc.s_id)
+-- FROM course co
+-- LEFT JOIN score sc ON co.c_id=sc.c_id
+-- GROUP BY co.c_id
+-- ;
+-- 
+-- select c.c_id,c.c_name,count(1) from course c
+-- inner join score sc on sc.c_id=c.c_id
+-- group by c.c_id
+-- ;
+
+-- 40、查询选修"张三"老师所授课程的学生中，成绩最高的学生信息及其成绩 
+-- SELECT *
+-- FROM course co
+-- INNER JOIN teacher te ON co.t_id=te.t_id AND te.t_name='张三'
+-- LEFT JOIN score sc ON co.c_id=sc.c_id
+-- LEFT JOIN student st ON sc.s_id=st.s_id
+-- ORDER BY sc.s_score DESC
+-- LIMIT 1
+-- ;
+-- 
+-- select st.*,c.c_name,sc.s_score,t.t_name from student st
+-- inner join score sc on sc.s_id=st.s_id
+-- inner join course c on c.c_id=sc.c_id 
+-- inner join teacher t on t.t_id=c.t_id and  t.t_name="张三"
+-- order by sc.s_score desc
+-- limit 0,1
+-- ;
+
+-- 41、查询不同课程成绩相同的学生的学生编号、课程编号、学生成绩。 挺难的
+-- SELECT st.*,sc.c_id,sc.s_score
+-- FROM student st 
+-- LEFT JOIN score sc ON st.s_id=sc.s_id
+-- left join course c on c.c_id=sc.c_id
+-- where (
+-- select count(1) from student st2 
+-- left join score sc2 on sc2.s_id=st2.s_id
+-- left join course c2 on c2.c_id=sc2.c_id
+-- where sc.s_score=sc2.s_score and c.c_id!=c2.c_id 
+-- )>1
+-- ;
+-- 
+-- select st.s_id,st.s_name,sc.c_id,sc.s_score from student st 
+-- left join score sc on sc.s_id=st.s_id
+-- left join course c on c.c_id=sc.c_id
+-- where (
+-- select count(1) from student st2 
+-- left join score sc2 on sc2.s_id=st2.s_id
+-- left join course c2 on c2.c_id=sc2.c_id
+-- where sc.s_score=sc2.s_score and c.c_id!=c2.c_id 
+-- )>1
+-- ; 
+
+-- 42、查询每门功成绩最好的前两名
+-- select a.* from (
+-- SELECT st.*,sc.c_id,sc.s_score
+-- FROM score sc
+-- LEFT JOIN student st ON sc.s_id=st.s_id
+-- WHERE sc.c_id='01'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 2 ) a
+-- union all
+-- select b.* from (
+-- SELECT st.*,sc.c_id,sc.s_score
+-- FROM score sc
+-- LEFT JOIN student st ON sc.s_id=st.s_id
+-- WHERE sc.c_id='02'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 2 ) b
+-- union all
+-- select c.* from (
+-- SELECT st.*,sc.c_id,sc.s_score
+-- FROM score sc
+-- LEFT JOIN student st ON sc.s_id=st.s_id
+-- WHERE sc.c_id='03'
+-- ORDER BY sc.s_score DESC
+-- LIMIT 2 ) c
+-- ;
+-- 牛逼，好好学习观摩一下
+-- select a.s_id,a.c_id,a.s_score 
+-- from score a
+-- where (select COUNT(1) from score b where b.c_id=a.c_id and b.s_score>=a.s_score)<=2 
+-- order by a.c_id
+
+-- 43、统计每门课程的学生选修人数（超过5人的课程才统计）。要求输出课程号和选修人数，查询结果按人数降序排列，
+--     若人数相同，按课程号升序排列 
+-- SELECT co.c_name,COUNT(sc.s_id)
+-- FROM course co
+-- LEFT JOIN score sc ON co.c_id=sc.c_id
+-- GROUP BY co.c_id
+-- HAVING COUNT(sc.s_id) > 5
+-- ORDER BY COUNT(sc.s_id) DESC, co.c_id
+-- ;
+-- 
+-- select co.c_name,count(sc.s_id) 
+-- from score sc
+-- left join course co ON co.c_id=sc.c_id
+-- group by co.c_id 
+-- having count(sc.s_id) > 5
+-- order by count(sc.s_id) desc,co.c_id
+-- ;
+
+-- 44、检索至少选修两门课程的学生学号
+-- SELECT *
+-- FROM student st
+-- WHERE (
+-- SELECT count(1) FROM score 
+-- WHERE st.s_id=s_id
+-- ) >= 2
+-- ;
+-- 
+-- select st.s_id from student st 
+-- left join score sc on sc.s_id=st.s_id
+-- group by st.s_id having count(1)>=2
+-- ;
+
+-- 45、查询选修了全部课程的学生信息。因为加了个jave课程没人选，所以下面的也是对的
+-- SELECT *
+-- FROM student st
+-- WHERE (
+-- SELECT count(1) FROM score 
+-- WHERE st.s_id=s_id
+-- ) = 3
+-- ;
+-- 
+-- select st.* from student st 
+-- left join score sc on sc.s_id=st.s_id
+-- group by st.s_id having count(1)=(select count(1) from course)
+-- ;
+
+-- 46、查询各学生的年龄
+-- SELECT st.s_birth,timestampdiff(year,st.s_birth,now()) FROM student st
+-- ;
+-- 
+-- select st.*,timestampdiff(year,st.s_birth,now()) from student st
+-- ;
+
+-- 49、查询本月过生日的学生
+-- select st.* from student st 
+-- where month(now())=month(date_format(st.s_birth,'%Y%m%d'))
+-- ;
+
+-- 50、查询下月过生日的学生
+-- 注意:当 当前月为12时,用month(now())+1为13而不是1,可用timestampadd()函数或mod取模
+-- select st.* from student st 
+-- where month(timestampadd(month,1,now()))=month(date_format(st.s_birth,'%Y%m%d'))
+-- ;
+-- -- 或
+-- select st.* from student st where (month(now()) + 1) mod 12 = month(date_format(st.s_birth,'%Y%m%d'))
+-- ;
